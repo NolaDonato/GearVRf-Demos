@@ -35,13 +35,11 @@ public class SpinnerItem extends TextFieldItem {
 
     @Override
     public void updateText(GVRContext context) {
-        if (cacheTestOn) {
-
-            GVRBitmapTexture tex = new GVRBitmapTexture(context, SpinnerItemFactory.getInstance(
-                    getGVRContext()).getBitmap(charItem.getMode(),
-                    charItem.getPosition()));
-            getRenderData().getMaterial().setMainTexture(tex);
-
+        if (cacheTestOn && (charItem != null)) {
+                GVRBitmapTexture tex = new GVRBitmapTexture(context, SpinnerItemFactory.getInstance(
+                        getGVRContext()).getBitmap(charItem.getMode(),
+                        charItem.getPosition()));
+                getRenderData().getMaterial().setMainTexture(tex);
         } else {
             GVRBitmapTexture tex = new GVRBitmapTexture(context, GVRTextBitmapFactory.create(
                     context.getContext(), width, height, currentText, 0));
