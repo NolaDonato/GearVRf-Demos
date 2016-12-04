@@ -3,10 +3,14 @@ package org.gearvrf.vuforiasample;
 import java.io.IOException;
 
 import org.gearvrf.GVRAndroidResource;
+import org.gearvrf.GVRCamera;
+import org.gearvrf.GVRCameraRig;
 import org.gearvrf.GVRContext;
 import org.gearvrf.GVRDrawFrameListener;
 import org.gearvrf.GVRMaterial;
 import org.gearvrf.GVRMaterial.GVRShaderType;
+import org.gearvrf.GVRPerspectiveCamera;
+import org.gearvrf.GVRPhongShader;
 import org.gearvrf.GVRRenderData.GVRRenderingOrder;
 import org.gearvrf.GVRMesh;
 import org.gearvrf.GVRRenderData;
@@ -16,7 +20,13 @@ import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
 import org.gearvrf.GVRMain;
 import org.gearvrf.GVRTexture;
+import org.gearvrf.GVRTransform;
+import org.gearvrf.scene_objects.GVRCubeSceneObject;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
+import com.vuforia.CameraCalibration;
+import com.vuforia.CameraDevice;
 import com.vuforia.GLTextureData;
 import com.vuforia.GLTextureUnit;
 import com.vuforia.ImageTarget;
@@ -26,11 +36,12 @@ import com.vuforia.State;
 import com.vuforia.Tool;
 import com.vuforia.Trackable;
 import com.vuforia.TrackableResult;
+import com.vuforia.Vec2F;
 import com.vuforia.VideoBackgroundTextureInfo;
 import com.vuforia.samples.SampleApplication.SampleApplicationSession;
 
 import android.opengl.Matrix;
-import android.util.Log;
+import org.gearvrf.utility.Log;
 
 public class VuforiaSampleMain extends GVRMain {
 
@@ -48,6 +59,7 @@ public class VuforiaSampleMain extends GVRMain {
     private volatile boolean init = false;
 
     private GVRScene mainScene;
+    private GVRSceneObject mTestObject;
     
     private float[] vuforiaMVMatrix;
     private float[] totalMVMatrix;
@@ -65,8 +77,25 @@ public class VuforiaSampleMain extends GVRMain {
     public void onInit(GVRContext gvrContext) {
         this.gvrContext = gvrContext;
         mainScene = gvrContext.getMainScene();
-        mainScene.getMainCameraRig().setFarClippingDistance(20000);
+        GVRCameraRig rig = mainScene.getMainCameraRig();
+        GVRPerspectiveCamera cam = (GVRPerspectiveCamera) rig.getLeftCamera();
+        float fov = getFOVY();
 
+        rig.setNearClippingDistance(2);
+        rig.setFarClippingDistance(2000);
+        cam.setFovY(fov);
+        cam = (GVRPerspectiveCamera) rig.getRightCamera();
+        cam.setFovY(fov);
+        GVRMaterial blue = new GVRMaterial(gvrContext, GVRMaterial.GVRShaderType.BeingGenerated.ID);
+        GVRSceneObject cube = new GVRCubeSceneObject(gvrContext, true, blue);
+
+        mTestObject = new GVRSceneObject(gvrContext);
+        cube.getTransform().setScale(30, 30, 30);
+        cube.getRenderData().setShaderTemplate(GVRPhongShader.class);
+        cube.getRenderData().setRenderingOrder(GVRRenderingOrder.OVERLAY);
+        blue.setDiffuseColor(0, 0, 1, 1);
+        rig.getOwnerObject().getTransform().rotateByAxis(180, 0, 1, 0);
+        mainScene.addSceneObject(mTestObject);
         createTeaPotObject();
 
         vuforiaMVMatrix = new float[16];
@@ -94,6 +123,18 @@ public class VuforiaSampleMain extends GVRMain {
         return SplashMode.NONE;
     }
 
+    float getFOVY()
+    {
+        CameraCalibration cameraCalibration = CameraDevice.getInstance().getCameraCalibration();
+
+        Vec2F size = cameraCalibration.getSize();
+        Vec2F focalLength = cameraCalibration.getFocalLength();
+
+        double fovRadians = 2 * Math.atan(0.5f * size.getData()[1] / focalLength.getData()[1]);
+        double fovDegrees = fovRadians * 180.0f / Math.PI;
+        return (float) fovDegrees;
+    }
+
     void onVuforiaInitialized() {
         gvrContext.runOnGlThread(new Runnable() {
             @Override
@@ -109,8 +150,8 @@ public class VuforiaSampleMain extends GVRMain {
 
     private void createCameraPassThrough() {
         passThroughObject = new GVRSceneObject(gvrContext, 1.0f, 1.0f);
-
-        passThroughObject.getTransform().setPosition(0.0f, 0.0f, -100.0f);
+        passThroughObject.getTransform().rotateByAxis(180, 0, 1, 0);
+        passThroughObject.getTransform().setPosition(0.0f, 0.0f, 100.0f);
         passThroughObject.getTransform().setScaleX(200f);
         passThroughObject.getTransform().setScaleY(200f);
 
@@ -223,12 +264,17 @@ public class VuforiaSampleMain extends GVRMain {
 
             if (trackable.getId() == 1 || trackable.getId() == 2) {
                 Matrix44F modelViewMatrix_Vuforia = Tool.convertPose2GLMatrix(result.getPose());
-                vuforiaMVMatrix = modelViewMatrix_Vuforia.getData();
-
                 float scaleFactor = (((ImageTarget) trackable).getSize().getData()[0])/2.0f;
+
+                vuforiaMVMatrix = modelViewMatrix_Vuforia.getData();
+                Matrix4f modelMatrix = new Matrix4f();
+                modelMatrix.set(vuforiaMVMatrix);
+                GVRTransform t = mTestObject.getTransform();
+                t.setModelMatrix(modelMatrix);
+                Log.e("VUFORIA", "pos = %f %f %f", t.getPositionX(), t.getPositionY(), t.getPositionZ());
+
                 Matrix.rotateM(vuforiaMVMatrix, 0, 90, 1, 0, 0);
                 Matrix.scaleM(vuforiaMVMatrix, 0, scaleFactor, scaleFactor, scaleFactor);
-
                 Matrix.multiplyMM(totalMVMatrix, 0,
                         vuforiaAppSession.getProjectionMatrix().getData(), 0, vuforiaMVMatrix, 0);
 
