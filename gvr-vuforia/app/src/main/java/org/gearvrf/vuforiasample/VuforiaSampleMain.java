@@ -7,7 +7,6 @@ import org.gearvrf.GVRCameraRig;
 import org.gearvrf.GVRContext;
 import org.gearvrf.GVRDrawFrameListener;
 import org.gearvrf.GVRMaterial;
-import org.gearvrf.GVRMaterial.GVRShaderType;
 import org.gearvrf.GVRPerspectiveCamera;
 import org.gearvrf.GVRPhongShader;
 import org.gearvrf.GVRRenderData.GVRRenderingOrder;
@@ -34,16 +33,13 @@ import com.vuforia.State;
 import com.vuforia.Tool;
 import com.vuforia.Trackable;
 import com.vuforia.TrackableResult;
-import com.vuforia.Vec2F;
 import com.vuforia.VideoBackgroundTextureInfo;
 import com.vuforia.samples.SampleApplication.SampleApplicationSession;
 
-import android.opengl.Matrix;
 import android.util.Log;
 
 import static org.joml.Matrix4f.CORNER_NXNYNZ;
 import static org.joml.Matrix4f.CORNER_PXPYNZ;
-import static org.joml.Matrix4f.CORNER_PXPYPZ;
 
 public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
 {
@@ -57,24 +53,13 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
 
     static final int VUFORIA_CAMERA_WIDTH = 1024;
     static final int VUFORIA_CAMERA_HEIGHT = 1024;
-    private int mViewWidth;
-    private int mViewHeight;
     private float mFarPlane;
     private float mAspect;
-    
-    private volatile boolean init = false;
-
     private GVRScene mainScene;
-    
     private float[] vuforiaMVMatrix;
-    private float[] totalMVMatrix;
-
+    private Matrix4f gvrProjMapping;
     boolean isReady = false;
-
-    ModelShader modelShader = null;
-
     boolean isPassThroughVisible = false;
-
     GVRTexture passThroughTexture;
     
     @Override
@@ -85,15 +70,15 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
         markers[0] = createMarker1();
         markers[1] = createMarker2();
         vuforiaMVMatrix = new float[16];
-        totalMVMatrix = new float[16];
-        init = true;
-    }
+        mainScene.setFrustumCulling(false);
+     }
 
     private void setupGVRCamera(GVRCameraRig rig)
     {
+        float near = 10.0f;
+        mFarPlane = 5000.0f;
         CameraCalibration cameraCalibration = CameraDevice.getInstance().getCameraCalibration();
-        Matrix44F vufProj = Tool.getProjectionGL(cameraCalibration, 0.1f, 50.0f);
-        Matrix4f glProj = new Matrix4f();
+        Matrix44F vufProj = Tool.getProjectionGL(cameraCalibration, near, mFarPlane);
         GVRPerspectiveCamera cam = (GVRPerspectiveCamera) rig.getLeftCamera();
         float fovRadians;
         float fovDegrees;
@@ -101,6 +86,7 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
         float w;
         float h;
 
+        Matrix4f glProj = new Matrix4f();
         glProj.set(vufProj.getData());
         glProj.frustumCorner(CORNER_PXPYNZ, p);
         w = p.x;
@@ -109,10 +95,9 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
         w -= p.x;
         h = p.y - h;
         mAspect = w / h;
-        mFarPlane = 50.0f;
         fovRadians = glProj.perspectiveFov();
         fovDegrees = (float) Math.toDegrees(fovRadians) * 2.0f;
-        rig.setNearClippingDistance(0.1f);
+        rig.setNearClippingDistance(near);
         rig.setFarClippingDistance(mFarPlane);
         cam.setFovY(fovDegrees);
         cam = (GVRPerspectiveCamera) rig.getRightCamera();
@@ -171,18 +156,18 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
     private void initCameraPassThrough(Renderer renderer)
     {
         VideoBackgroundTextureInfo texInfo = renderer.getVideoBackgroundTextureInfo();
-        mViewWidth = texInfo.getImageSize().getData()[0];
-        mViewHeight = texInfo.getImageSize().getData()[1];
+        float viewWidth = texInfo.getImageSize().getData()[0];
+        float viewHeight = texInfo.getImageSize().getData()[1];
 
-        if ((mViewWidth == 0) ||
-            (mViewHeight == 0))
+        if ((viewWidth == 0) ||
+            (viewHeight == 0))
         {
             return;
         }
 
         // These calculate a slope for the texture coords
-        float uRatio = (mViewWidth / (float) texInfo.getTextureSize().getData()[0]);
-        float vRatio = (mViewHeight / (float) texInfo.getTextureSize().getData()[1]);
+        float uRatio = (viewWidth / (float) texInfo.getTextureSize().getData()[0]);
+        float vRatio = (viewHeight / (float) texInfo.getTextureSize().getData()[1]);
         float[] texCoords = { 0.0f, 0.0f, 0.0f, vRatio, uRatio, 0.0f, uRatio, vRatio };
         GVRRenderData renderData = passThroughObject.getRenderData();
         GVRMesh mesh = renderData.getMesh();
@@ -198,21 +183,25 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
     {
         try
         {
-            modelShader = new ModelShader(gvrContext);
             GVRMesh teapotMesh = gvrContext.loadMesh(new GVRAndroidResource(gvrContext, "teapot.obj"));
             GVRAndroidResource file = new GVRAndroidResource(gvrContext.getContext(), "teapot_tex1.jpg");
             GVRTexture teapotTexture = gvrContext.getAssetLoader().loadTexture(file);
             GVRSceneObject teapot = new GVRSceneObject(gvrContext, teapotMesh, teapotTexture, GVRMaterial.GVRShaderType.Texture.ID);
             GVRRenderData rdata = teapot.getRenderData();
+            GVRSceneObject marker1 = new GVRSceneObject(gvrContext);
+            GVRSceneObject.BoundingVolume bv;
 
             rdata.setDepthTest(false);
             rdata.setRenderingOrder(GVRRenderingOrder.OVERLAY);
             rdata.setCullFace(GVRRenderPass.GVRCullFaceEnum.None);
+            teapot.getTransform().setScale(100.0f, 100.0f, 100.0f);
+            bv = teapot.getBoundingVolume();
+            teapot.getTransform().setPosition(-bv.center.z, -bv.center.y, -bv.center.z);
             teapot.getTransform().rotateByAxis(90.0f, 1, 0, 0);
-            teapot.getTransform().setPositionZ(-5.0f);
-            teapot.setEnable(false);
-            mainScene.getMainCameraRig().addChildObject(teapot);
-            return teapot;
+            marker1.setEnable(false);
+            marker1.addChildObject(teapot);
+            mainScene.getMainCameraRig().addChildObject(marker1);
+            return marker1;
         }
         catch (IOException e)
         {
@@ -223,20 +212,21 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
 
     private GVRSceneObject createMarker2()
     {
-        modelShader = new ModelShader(gvrContext);
         GVRCubeSceneObject cube = new GVRCubeSceneObject(gvrContext, true);
         GVRRenderData rdata = cube.getRenderData();
+        GVRSceneObject marker2 = new GVRCubeSceneObject(gvrContext);
 
         rdata.getMaterial().setDiffuseColor(0.2f, 0.1f, 1.0f, 1.0f);
         rdata.setShaderTemplate(GVRPhongShader.class);
         rdata.setDepthTest(false);
         rdata.setRenderingOrder(GVRRenderingOrder.OVERLAY);
         rdata.setCullFace(GVRRenderPass.GVRCullFaceEnum.None);
+        rdata.getTransform().setScale(100.0f, 100.0f, 100.0f);
         rdata.bindShader(mainScene);
-        cube.setEnable(false);
-        cube.getTransform().setPositionZ(-10.0f);
-        mainScene.getMainCameraRig().addChildObject(cube);
-        return cube;
+        marker2.addChildObject(cube);
+        marker2.setEnable(false);
+        mainScene.getMainCameraRig().addChildObject(marker2);
+        return marker2;
     }
 
     private void hideMarkers()
@@ -267,9 +257,9 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
         // did we find any trackables this frame?
         int numDetectedMarkers = state.getNumTrackableResults();
 
+        hideMarkers();
         if (numDetectedMarkers == 0)
         {
-            hideMarkers();
             return;
         }
 
@@ -283,30 +273,33 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
             {
                 continue;
             }
-            float scaleFactor = (((ImageTarget) trackable).getSize().getData()[0]) / 2.0f;
+            float scaleX = (((ImageTarget) trackable).getSize().getData()[0]) / 2.0f;
+            float scaleY = (((ImageTarget) trackable).getSize().getData()[1]) / 2.0f;
             Matrix44F vufMV = Tool.convertPose2GLMatrix(result.getPose());
-            Matrix4f mtx = computeMarkerMatrix(vufMV, scaleFactor);
+            Matrix4f mtx = computeMarkerMatrix(vufMV);
 
             markers[id].getTransform().setModelMatrix(mtx);
             markers[id].setEnable(true);
         }
     }
 
-    private Matrix4f computeMarkerMatrix(Matrix44F vuforiaMV, float scaleFactor)
+    private Matrix4f computeMarkerMatrix(Matrix44F vuforiaMV)
     {
         vuforiaMVMatrix = vuforiaMV.getData();
         Matrix4f vufMV = new Matrix4f();
         Vector3f pos = new Vector3f();
         Matrix4f total = new Matrix4f();
+        float[] temp = new float[16];
 
-        total.rotate((float) Math.PI, 0, 1, 0);
-        vufMV.set(vuforiaMVMatrix);
+        total.scale(1.0f, mAspect, 1.0f);
+        total.rotate((float) Math.PI, 1, 0, 0);
+        vufMV.set(vuforiaMV.getData());
+        showMatrix("\nVuforia Pose Matrix", vuforiaMV.getData());
         total.mul(vufMV);
         total.getTranslation(pos);
-        pos.div(scaleFactor);
-        total.setTranslation(pos.x, pos.y * mAspect, pos.z);
-        total.get(vuforiaMVMatrix);
-        showMatrix("\nCube", vuforiaMVMatrix);
+        total.setTranslation(pos.x, pos.y, pos.z);
+        total.get(temp);
+        showMatrix("\nMarker Matrix", temp);
         return total;
     }
 
