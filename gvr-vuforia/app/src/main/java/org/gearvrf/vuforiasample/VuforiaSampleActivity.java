@@ -139,7 +139,6 @@ public class VuforiaSampleActivity extends GVRActivity implements
 
         if (exception == null) {
             initApplicationAR();
-            main.isReady = true;
 
             try {
                 vuforiaAppSession.startAR(CameraDevice.CAMERA_DIRECTION.CAMERA_DIRECTION_DEFAULT);
