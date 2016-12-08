@@ -22,6 +22,7 @@ import org.gearvrf.GVRTexture;
 import org.gearvrf.scene_objects.GVRCubeSceneObject;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import com.vuforia.CameraCalibration;
 import com.vuforia.CameraDevice;
@@ -71,7 +72,8 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
 
         this.gvrContext = gvrContext;
         mainScene = gvrContext.getMainScene();
-        mRoot = mainScene.getMainCameraRig().getHeadTransformObject();
+        //mRoot = mainScene.getMainCameraRig().getHeadTransformObject();
+        mRoot = mainScene.getRoot();
         marker = createMarker1();
         if (marker != null)
         {
@@ -113,10 +115,8 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
         rig.setNearClippingDistance(near);
         rig.setFarClippingDistance(mFarPlane);
         cam.setFovY(fovDegrees);
-        //cam.setAspectRatio(mAspect);
         cam = (GVRPerspectiveCamera) rig.getRightCamera();
         cam.setFovY(fovDegrees);
-        //cam.setAspectRatio(mAspect);
     }
 
     @Override
@@ -206,7 +206,7 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
 
             marker1.addChildObject(teapot);
             setupModel(marker1, 100.0f);
-            mainScene.getMainCameraRig().addChildObject(marker1);
+            mRoot.addChildObject(marker1);
             return marker1;
         }
         catch (IOException e)
@@ -311,17 +311,19 @@ public class VuforiaSampleMain extends GVRMain implements GVRDrawFrameListener
     {
         vuforiaMVMatrix = vuforiaMV.getData();
         Matrix4f vufMV = new Matrix4f();
-        Vector3f pos = new Vector3f();
+        Vector4f v = new Vector4f(1, 0, 0, 0);
         Matrix4f total = new Matrix4f();
+        Matrix4f gvrView = mainScene.getMainCameraRig().getHeadTransform().getModelMatrix4f();
         float[] temp = new float[16];
 
-        total.scale(1.0f, mAspect, 1.0f);
+        total.mul(gvrView);
         total.rotate((float) Math.PI, 1, 0, 0);
+        total.scale(1.0f / mAspect, 1.0f, 1.0f);
         vufMV.set(vuforiaMV.getData());
         showMatrix("\nVuforia Pose Matrix", vuforiaMV.getData());
         total.mul(vufMV);
-        total.getTranslation(pos);
-        total.setTranslation(pos.x, pos.y, pos.z);
+        //total.getTranslation(v);
+        //total.setTranslation(v.x, v.y, v.z);
         total.get(temp);
         showMatrix("\nMarker Matrix", temp);
         return total;
