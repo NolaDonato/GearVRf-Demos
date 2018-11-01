@@ -18,6 +18,7 @@ package org.gearvrf.arpet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 
+import org.gearvrf.GVRBoxCollider;
 import org.gearvrf.GVRCollider;
 import org.gearvrf.GVRComponent;
 import org.gearvrf.GVREventListeners;
@@ -153,8 +154,7 @@ public class BallThrowHandler {
             @Override
             public boolean visit(GVRComponent gvrComponent) {
                 if (mBall.getCollider() == null) {
-                    GVRCollider collider = new GVRMeshCollider(mPetContext.getGVRContext(),
-                            ((GVRRenderData)gvrComponent).getMesh().getBoundingBox());
+                    GVRCollider collider = new GVRBoxCollider(mPetContext.getGVRContext());
                     mBall.attachCollider(collider);
                 }
                 return false;

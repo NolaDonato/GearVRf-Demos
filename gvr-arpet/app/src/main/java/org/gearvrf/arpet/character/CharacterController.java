@@ -179,14 +179,17 @@ public class CharacterController extends BasePetMode {
 
     public void setPlane(GVRPlane plane) {
         CharacterView petView = (CharacterView) view();
+        GVRSceneObject planeOwner;
 
         if (petView.getBoundaryPlane() != null) {
-            petView.getBoundaryPlane().removeChildObject(mTapObject);
-            mPetContext.unregisterSharedObject(petView.getBoundaryPlane().getSceneObject());
+            planeOwner = petView.getBoundaryPlane().getOwnerObject();
+            planeOwner.removeChildObject(mTapObject);
+            mPetContext.unregisterSharedObject(planeOwner);
         }
 
-        plane.getSceneObject().addChildObject(mTapObject);
-        mPetContext.registerSharedObject(plane.getSceneObject(), ArPetObjectType.PLANE);
+        planeOwner = plane.getOwnerObject();
+        planeOwner.addChildObject(mTapObject);
+        mPetContext.registerSharedObject(planeOwner, ArPetObjectType.PLANE);
 
         petView.setBoundaryPlane(plane);
     }

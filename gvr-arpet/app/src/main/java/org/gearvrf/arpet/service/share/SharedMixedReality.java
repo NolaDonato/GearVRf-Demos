@@ -57,14 +57,16 @@ public class SharedMixedReality implements IMRCommon {
     }
 
     public SharedMixedReality(PetContext petContext) {
-        mMixedReality = new GVRMixedReality(petContext.getGVRContext(), true,
-                petContext.getMainScene());
+        mMixedReality = new GVRMixedReality(petContext.getMainScene(), true);
         mPetContext = petContext;
         mSharedSceneObjects = new ArrayList<>();
         mMessageService = MessageService.getInstance();
         mMessageService.addMessageReceiver(new LocalMessageReceiver(TAG));
         Matrix.setIdentityM(mSpaceMatrix, 0);
     }
+
+    @Override
+    public float getARToVRScale() { return mMixedReality.getARToVRScale(); }
 
     @Override
     public void resume() {
@@ -218,13 +220,13 @@ public class SharedMixedReality implements IMRCommon {
     }
 
     @Override
-    public GVRHitResult hitTest(GVRSceneObject gvrSceneObject, GVRPicker.GVRPickedObject gvrPickedObject) {
-        return mMixedReality.hitTest(gvrSceneObject, gvrPickedObject);
+    public GVRHitResult hitTest(GVRPicker.GVRPickedObject gvrPickedObject) {
+        return mMixedReality.hitTest(gvrPickedObject);
     }
 
     @Override
-    public GVRHitResult hitTest(GVRSceneObject gvrSceneObject, float x, float y) {
-        return mMixedReality.hitTest(gvrSceneObject, x, y);
+    public GVRHitResult hitTest(float x, float y) {
+        return mMixedReality.hitTest(x, y);
     }
 
     @Override

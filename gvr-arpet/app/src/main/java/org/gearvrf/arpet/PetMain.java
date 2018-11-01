@@ -252,14 +252,13 @@ public class PetMain extends DisableNativeSplashScreen {
         @Override
         public void onTouchEnd(GVRSceneObject gvrSceneObject, GVRPicker.GVRPickedObject gvrPickedObject) {
             Log.d(TAG, "onTouchEnd " + gvrSceneObject.getName());
-
-            // TODO: Improve this if
-            if (gvrSceneObject != null && gvrSceneObject.getParent() instanceof GVRPlane) {
+            GVRPlane plane = (GVRPlane) gvrSceneObject.getComponent(GVRPlane.getComponentType());
+            if (plane != null) {
                 final float[] modelMtx = gvrSceneObject.getParent().getTransform().getModelMatrix();
                 final float[] hitPos = gvrPickedObject.hitLocation;
 
                 if (!mPet.isRunning()) {
-                    mPet.setPlane((GVRPlane)gvrSceneObject.getParent());
+                    mPet.setPlane(plane);
                     mPet.getView().updatePose(modelMtx);
                     //mPet.setAnchor(mPetContext.getMixedReality().createAnchor(modelMtx));
                     mPet.enter();
@@ -271,7 +270,7 @@ public class PetMain extends DisableNativeSplashScreen {
                         mCurrentMode.enter();
                     }
 
-                    mPlaneHandler.stopTracking((GVRPlane)gvrSceneObject.getParent());
+                    mPlaneHandler.stopTracking(plane);
                 }
 
                 mPet.goToTap(hitPos[0], hitPos[1], hitPos[2]);

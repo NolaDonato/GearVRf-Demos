@@ -25,6 +25,7 @@ import org.gearvrf.GVRContext;
 import org.gearvrf.GVRDrawFrameListener;
 import org.gearvrf.GVRMaterial;
 import org.gearvrf.GVRMesh;
+import org.gearvrf.GVRRenderData;
 import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
 import org.gearvrf.mixedreality.GVRPlane;
@@ -90,12 +91,11 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
 
         @Override
         public void onAttach(GVRSceneObject newOwner) {
-            if (!GVRPlane.class.isInstance(newOwner)) {
-                throw new RuntimeException("PlaneBoard can only be attached to a GVRPlane object");
+            plane = (GVRPlane) newOwner.getComponent(GVRPlane.getComponentType());
+            if (plane == null) {
+                throw new RuntimeException("PlaneBoard can only be attached to a GVRPlane");
             }
-
             super.onAttach(newOwner);
-            plane = (GVRPlane) newOwner;
             mScene.addSceneObject(box);
         }
 
@@ -108,7 +108,7 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
         }
 
         private void setBoxTransform() {
-            Matrix4f targetMtx = plane.getSceneObject().getTransform().getModelMatrix4f();
+            Matrix4f targetMtx = plane.getTransform().getModelMatrix4f();
             rootInvMat.mul(targetMtx, targetMtx);
 
             box.getTransform().setModelMatrix(targetMtx);
@@ -150,17 +150,12 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
 
     private GVRSceneObject createQuadPlane() {
         GVRMesh mesh = GVRMesh.createQuad(mContext, "float3 a_position", 1.0f, 1.0f);
-
         GVRMaterial mat = new GVRMaterial(mContext, GVRMaterial.GVRShaderType.Phong.ID);
-
         GVRSceneObject polygonObject = new GVRSceneObject(mContext, mesh, mat);
-
         GVRBoxCollider collider = new GVRBoxCollider(mContext);
-        collider.setHalfExtents(0.5f, 0.5f, 0.5f);
+        float s = mixedReality.getARToVRScale();
+
         polygonObject.setName("Plane");
-
-        polygonObject.attachCollider(collider);
-
         hsvHUE += 35;
         float[] hsv = new float[3];
         hsv[0] = hsvHUE % 360;
@@ -169,13 +164,16 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
 
         int c = Color.HSVToColor(50, hsv);
         mat.setDiffuseColor(Color.red(c) / 255f, Color.green(c) / 255f,
-                Color.blue(c) / 255f, 0.2f);
-
+                Color.blue(c) / 255f, 0.5f);
         polygonObject.getRenderData().setMaterial(mat);
+        polygonObject.getRenderData().setRenderingOrder(GVRRenderData.GVRRenderingOrder.TRANSPARENT);
         polygonObject.getRenderData().setAlphaBlend(true);
         polygonObject.getTransform().setRotationByAxis(-90, 1, 0, 0);
-
-        return polygonObject;
+        polygonObject.getTransform().setScale(s, s, s);
+        GVRSceneObject transformNode = new GVRSceneObject(mContext);
+        transformNode.attachCollider(collider);
+        transformNode.addChildObject(polygonObject);
+        return transformNode;
     }
 
     private boolean updatePlanes = true;
@@ -188,12 +186,13 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
         if (planeType == GVRPlane.Type.HORIZONTAL_DOWNWARD_FACING || petPlane != null) {
             return;
         }
+        GVRSceneObject planeGeo = createQuadPlane();
 
-        plane.setSceneObject(createQuadPlane());
-        mScene.addSceneObject(plane);
+        planeGeo.attachComponent(plane);
+        mScene.addSceneObject(planeGeo);
 
         PlaneBoard board = new PlaneBoard(mContext);
-        plane.attachComponent(board);
+        planeGeo.attachComponent(board);
         mPlanes.add(plane);
 
         if (!planeDetected && planeType == GVRPlane.Type.HORIZONTAL_UPWARD_FACING) {
@@ -217,7 +216,7 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
     public void onPlaneMerging(GVRPlane childPlane, GVRPlane parentPlane) {
         // Will remove PlaneBoard from childPlane because this plane is not needed anymore now
         // that parentPlane "contains" childPlane
-        childPlane.detachComponent(PLANEBOARD_COMP_TYPE);
+        childPlane.getOwnerObject().detachComponent(PLANEBOARD_COMP_TYPE);
 
         mPlanes.remove(childPlane);
     }
@@ -230,7 +229,7 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
         }
 
         petPlane = mainPlane;
-        petPlane.setName(PLANE_NAME);
+        petPlane.getOwnerObject().setName(PLANE_NAME);
         EventBus.getDefault().post(new PlaneDetectedEvent(petPlane));
     }
 

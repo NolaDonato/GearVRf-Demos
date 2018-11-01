@@ -178,8 +178,7 @@ public class EditMode extends BasePetMode {
             if (mCharacterView.isDragging()) {
                 collision = testDraggingOnPlane(mMixedReality.getPassThroughObject());
                 if (collision != null) {
-                    GVRHitResult gvrHitResult = mMixedReality.hitTest(mMixedReality.getPassThroughObject(),
-                            collision);
+                    GVRHitResult gvrHitResult = mMixedReality.hitTest(collision);
                     if (gvrHitResult != null) {
                         mCharacterView.updatePose(gvrHitResult.getPose());
                     }

@@ -33,7 +33,6 @@ import org.gearvrf.animation.GVRAnimation;
 import org.gearvrf.animation.GVRAnimator;
 import org.gearvrf.animation.GVRAvatar;
 import org.gearvrf.animation.GVRRepeatMode;
-import org.gearvrf.arpet.AnchoredObject;
 import org.gearvrf.arpet.PetContext;
 import org.gearvrf.arpet.R;
 import org.gearvrf.arpet.gesture.OnScaleListener;
@@ -323,7 +322,7 @@ public class CharacterView extends GVRSceneObject implements
     private GVRAvatar.IAvatarEvents mAvatarListener = new GVRAvatar.IAvatarEvents() {
         int contAnim = 0;
         @Override
-        public void onAvatarLoaded(GVRSceneObject gvrSceneObject, String s, String s1) {
+        public void onAvatarLoaded(GVRAvatar avatar, GVRSceneObject gvrSceneObject, String s, String s1) {
             final GVRContext gvrContext = mPetContext.getGVRContext();
             Log.d(TAG, "onAvatarLoaded %s => %s", s, s1);
 
@@ -346,12 +345,12 @@ public class CharacterView extends GVRSceneObject implements
         }
 
         @Override
-        public void onModelLoaded(GVRSceneObject gvrSceneObject, String s, String s1) {
+        public void onModelLoaded(GVRAvatar avatar, GVRSceneObject gvrSceneObject, String s, String s1) {
             Log.d(TAG, "onModelLoaded %s => %s", s, s1);
         }
 
         @Override
-        public void onAnimationLoaded(GVRAnimator animation, String s, String s1) {
+        public void onAnimationLoaded(GVRAvatar avatar, GVRAnimator animation, String s, String s1) {
             Log.d(TAG, "onAnimationLoaded %s => %s", s, s1);
             contAnim++;
 
@@ -373,12 +372,12 @@ public class CharacterView extends GVRSceneObject implements
         }
 
         @Override
-        public void onAnimationStarted(GVRAnimator gvrAnimator) {
+        public void onAnimationStarted(GVRAvatar avatar, GVRAnimator gvrAnimator) {
             Log.d(TAG, "onAnimationStarted");
         }
 
         @Override
-        public void onAnimationFinished(GVRAnimator gvrAnimator, GVRAnimation gvrAnimation) {
+        public void onAnimationFinished(GVRAvatar avatar, GVRAnimator gvrAnimator, GVRAnimation gvrAnimation) {
             Log.d(TAG, "onAnimationFinished");
         }
     };
