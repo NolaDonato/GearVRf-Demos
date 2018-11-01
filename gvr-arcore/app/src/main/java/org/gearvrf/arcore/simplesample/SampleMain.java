@@ -115,7 +115,7 @@ public class SampleMain extends GVRMain {
         @Override
         public void onPlaneDetection(GVRPlane gvrPlane)
         {
-            if (gvrPlane.getPlaneType() == GVRPlane.PlaneType.VERTICAL)
+            if (gvrPlane.getPlaneType() == GVRPlane.Type.VERTICAL)
             {
                 return;
             }
