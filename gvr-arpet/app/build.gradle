@@ -65,4 +65,5 @@ dependencies {
     releaseImplementation(name: 'MixedReality-release', ext: 'aar')
     debugImplementation(name: 'gvrf-physics-debug', ext: 'aar')
     releaseImplementation(name: 'gvrf-physics-release', ext: 'aar')
+    compile project(path: ':MixedReality')
 }

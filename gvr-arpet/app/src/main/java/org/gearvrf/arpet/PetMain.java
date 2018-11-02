@@ -102,7 +102,7 @@ public class PetMain extends DisableNativeSplashScreen {
         GVRInputManager inputManager = mPetContext.getGVRContext().getInputManager();
         inputManager.selectController((newController, oldController) -> {
             if (newController instanceof GVRGazeCursorController) {
-                ((GVRGazeCursorController) newController).setEnableTouchScreen(true);
+                ((GVRGazeCursorController) newController).setTouchScreenDepth(mSharedMixedReality.getScreenDepth());
                 newController.setCursor(null);
             }
 

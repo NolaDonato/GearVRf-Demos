@@ -30,15 +30,16 @@ import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
 import org.gearvrf.mixedreality.GVRPlane;
 import org.gearvrf.mixedreality.GVRTrackingState;
-import org.gearvrf.mixedreality.IMRCommon;
-import org.gearvrf.mixedreality.IPlaneEventsListener;
+import org.gearvrf.mixedreality.IMixedReality;
+import org.gearvrf.mixedreality.IMixedReality;
+import org.gearvrf.mixedreality.IPlaneEvents;
 import org.gearvrf.physics.GVRRigidBody;
 import org.greenrobot.eventbus.EventBus;
 import org.joml.Matrix4f;
 
 import java.util.LinkedList;
 
-public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameListener {
+public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
 
     private GVRContext mContext;
     private GVRScene mScene;
@@ -139,7 +140,7 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
 
     private LinkedList<GVRPlane> mPlanes = new LinkedList<>();
 
-    private IMRCommon mixedReality;
+    private IMixedReality mixedReality;
 
     PlaneHandler(PetContext petContext) {
         mContext = petContext.getGVRContext();
@@ -179,7 +180,13 @@ public final class PlaneHandler implements IPlaneEventsListener, GVRDrawFrameLis
     private boolean updatePlanes = true;
 
     @Override
-    public void onPlaneDetection(GVRPlane plane) {
+    public void onStartPlaneDetection(IMixedReality mr) { }
+
+    @Override
+    public void onStopPlaneDetection(IMixedReality mr) { }
+
+    @Override
+    public void onPlaneDetected(GVRPlane plane) {
         GVRPlane.Type planeType = plane.getPlaneType();
 
         // Don't use planes that are downward facing, e.g ceiling

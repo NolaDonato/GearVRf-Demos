@@ -43,7 +43,7 @@ import org.gearvrf.arpet.mode.IPetView;
 import org.gearvrf.arpet.shaders.GVRTiledMaskShader;
 import org.gearvrf.arpet.util.LoadModelHelper;
 import org.gearvrf.mixedreality.GVRPlane;
-import org.gearvrf.mixedreality.IMRCommon;
+import org.gearvrf.mixedreality.IMixedReality;
 import org.gearvrf.scene_objects.GVRCubeSceneObject;
 import org.gearvrf.utility.Log;
 import org.joml.Vector3f;
