@@ -195,6 +195,11 @@ public class SharedMixedReality implements IMRCommon {
     }
 
     @Override
+    public GVRSceneObject createAnchorNode(float[] pose) {
+        return mMixedReality.createAnchorNode(pose);
+    }
+
+    @Override
     public void updateAnchorPose(GVRAnchor gvrAnchor, float[] pose) {
         mMixedReality.updateAnchorPose(gvrAnchor, pose);
     }

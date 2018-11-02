@@ -71,7 +71,7 @@ public class CharacterController extends BasePetMode {
     }
 
     public CharacterController(PetContext petContext) {
-        super(petContext, new CharacterView(petContext));
+        super(petContext, new CharacterView(petContext.getGVRContext()));
 
         mPetActions = new SparseArray<>();
         mDrawFrameHandler = null;

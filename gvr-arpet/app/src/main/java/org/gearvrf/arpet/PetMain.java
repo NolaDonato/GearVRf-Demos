@@ -254,7 +254,7 @@ public class PetMain extends DisableNativeSplashScreen {
             Log.d(TAG, "onTouchEnd " + gvrSceneObject.getName());
             GVRPlane plane = (GVRPlane) gvrSceneObject.getComponent(GVRPlane.getComponentType());
             if (plane != null) {
-                final float[] modelMtx = gvrSceneObject.getParent().getTransform().getModelMatrix();
+                final float[] modelMtx = gvrSceneObject.getTransform().getModelMatrix();
                 final float[] hitPos = gvrPickedObject.hitLocation;
 
                 if (!mPet.isRunning()) {

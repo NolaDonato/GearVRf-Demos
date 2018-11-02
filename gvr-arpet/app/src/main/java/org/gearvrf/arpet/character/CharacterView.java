@@ -58,7 +58,6 @@ public class CharacterView extends GVRSceneObject implements
 
     private final String TAG = getClass().getSimpleName();
 
-    private final PetContext mPetContext;
     private List<OnScaleListener> mOnScaleListeners = new ArrayList<>();
 
     private GVRPlane mBoundaryPlane;
@@ -72,29 +71,26 @@ public class CharacterView extends GVRSceneObject implements
     private String mBoneMap;
     protected ILoadEvents mLoadListener = null;
 
-    CharacterView(@NonNull PetContext petContext) {
-        super(petContext.getGVRContext());
-
-        mPetContext = petContext;
+    CharacterView(@NonNull GVRContext context) {
+        super(context);
     }
 
     private void createDragCollider() {
         final boolean showCollider = false;
         GVRSceneObject cube;
+        final GVRContext ctx = getGVRContext();
 
         // To debug the  collision
         if (!showCollider) {
-            cube = new GVRSceneObject(mPetContext.getGVRContext());
+            cube = new GVRSceneObject(getGVRContext());
         }  else {
-            GVRMaterial material = new GVRMaterial(mPetContext.getGVRContext(),
-                    GVRMaterial.GVRShaderType.Color.ID);
+            GVRMaterial material = new GVRMaterial(ctx, GVRMaterial.GVRShaderType.Color.ID);
             material.setColor(1, 0, 0);
-            cube = new GVRCubeSceneObject(mPetContext.getGVRContext(),
-                    true, material);
+            cube = new GVRCubeSceneObject(ctx, true, material);
             cube.getRenderData().setDrawMode(GLES30.GL_LINE_LOOP);
         }
 
-        GVRBoxCollider collider = new GVRBoxCollider(mPetContext.getGVRContext());
+        GVRBoxCollider collider = new GVRBoxCollider(ctx);
         collider.setHalfExtents(0.4f, 0.4f, 0.4f);
         cube.attachCollider(collider);
 
@@ -114,7 +110,7 @@ public class CharacterView extends GVRSceneObject implements
     }
 
     private void createShadow() {
-        final GVRContext gvrContext = mPetContext.getGVRContext();
+        final GVRContext gvrContext = getGVRContext();
         GVRTexture tex = gvrContext.getAssetLoader().loadTexture(
                 new GVRAndroidResource(gvrContext, R.drawable.drag_shadow));
         GVRMaterial mat = new GVRMaterial(gvrContext);
@@ -130,7 +126,7 @@ public class CharacterView extends GVRSceneObject implements
     }
 
     private void createInfinityPlan() {
-        final GVRContext gvrContext = mPetContext.getGVRContext();
+        final GVRContext gvrContext = getGVRContext();
         final float width = 2.0f;
         final float height = 2.0f;
 
@@ -239,7 +235,7 @@ public class CharacterView extends GVRSceneObject implements
 
     @Override
     public void load(ILoadEvents listener) {
-        final GVRContext gvrContext = mPetContext.getGVRContext();
+        final GVRContext gvrContext = getGVRContext();
         mLoadListener = listener;
 
         createShadow();
@@ -275,7 +271,7 @@ public class CharacterView extends GVRSceneObject implements
     public void setInitialScale() {
         final float MIN_DISTANCE = 100f;
         Vector3f vectorDistance = new Vector3f();
-        float[] modelCam = mPetContext.getMainScene().getMainCameraRig().getTransform().getModelMatrix();
+        float[] modelCam = getGVRContext().getMainScene().getMainCameraRig().getTransform().getModelMatrix();
         float[] modelCharacter = getTransform().getModelMatrix();
 
         vectorDistance.set(modelCam[12], modelCam[13], modelCam[14]);
@@ -297,7 +293,7 @@ public class CharacterView extends GVRSceneObject implements
     }
 
     private void loadAnimations() {
-        final GVRContext gvrContext = mPetContext.getGVRContext();
+        final GVRContext gvrContext = getGVRContext();
         int i = 0;
         try
         {
@@ -323,7 +319,7 @@ public class CharacterView extends GVRSceneObject implements
         int contAnim = 0;
         @Override
         public void onAvatarLoaded(GVRAvatar avatar, GVRSceneObject gvrSceneObject, String s, String s1) {
-            final GVRContext gvrContext = mPetContext.getGVRContext();
+            final GVRContext gvrContext = getGVRContext();
             Log.d(TAG, "onAvatarLoaded %s => %s", s, s1);
 
             if (gvrSceneObject.getParent() == null)
