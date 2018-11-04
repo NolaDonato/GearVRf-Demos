@@ -63,7 +63,6 @@ public class SharedMixedReality implements IMixedReality {
         mMessageService = MessageService.getInstance();
         mMessageService.addMessageReceiver(new LocalMessageReceiver(TAG));
         Matrix.setIdentityM(mSpaceMatrix, 0);
-        mListeners = new GVREventReceiver(this);
     }
 
     @Override
@@ -79,7 +78,7 @@ public class SharedMixedReality implements IMixedReality {
         mMixedReality.pause();
     }
 
-    public GVREventReceiver getEventReceiver() { return mListeners; }
+    public GVREventReceiver getEventReceiver() { return mMixedReality.getEventReceiver(); }
 
     /**
      * Starts the sharing mode

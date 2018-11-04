@@ -75,7 +75,7 @@ public class PetContext {
         };
     }
 
-    public void init(GVRContext context) {
+    public void init(GVRContext context, IPlaneEvents planeListener) {
         mGvrContext = context;
         mMainScene = new GVRScene(context);
 
@@ -85,6 +85,7 @@ public class PetContext {
 
         PetConnectionManager.getInstance().init(this);
         mMixedReality = new SharedMixedReality(this);
+        registerPlaneListener(planeListener);
         mMixedReality.resume();
 
         mPlayer = new PlayerSceneObject(mGvrContext);

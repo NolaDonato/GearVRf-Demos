@@ -43,7 +43,7 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
 
     private GVRContext mContext;
     private GVRScene mScene;
-
+    private PetMain mPetMain;
     private int hsvHUE = 0;
 
     private boolean planeDetected = false;
@@ -142,11 +142,10 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
 
     private IMixedReality mixedReality;
 
-    PlaneHandler(PetContext petContext) {
-        mContext = petContext.getGVRContext();
-        mScene = petContext.getMainScene();
-        mixedReality = petContext.getMixedReality();
-        petContext.registerPlaneListener(this);
+    PlaneHandler(PetMain petMain) {
+        mContext = petMain.getGVRContext();
+        mScene = mContext.getMainScene();
+        mPetMain = petMain;
     }
 
     private GVRSceneObject createQuadPlane() {
@@ -179,8 +178,15 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
 
     private boolean updatePlanes = true;
 
+    /*
+     * ARCore session guaranteed to be initialized here.
+     */
     @Override
-    public void onStartPlaneDetection(IMixedReality mr) { }
+    public void onStartPlaneDetection(IMixedReality mr)
+    {
+        mixedReality = mr;
+        mPetMain.onARInit(mContext);
+    }
 
     @Override
     public void onStopPlaneDetection(IMixedReality mr) { }

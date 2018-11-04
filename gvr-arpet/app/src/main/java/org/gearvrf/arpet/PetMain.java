@@ -71,15 +71,12 @@ public class PetMain extends DisableNativeSplashScreen {
         mCurrentSplashScreen = new CurrentSplashScreen(gvrContext);
         mCurrentSplashScreen.onShow();
 
-        mPetContext.init(gvrContext);
-
         mHandlerModeChange = new HandlerModeChange();
         mHandlerBackToHud = new HandlerBackToHud();
 
-        mPlaneHandler = new PlaneHandler(mPetContext);
+        mPlaneHandler = new PlaneHandler(this);
 
-        configTouchScreen();
-
+        mPetContext.init(gvrContext, mPlaneHandler);
         mSharedMixedReality = (SharedMixedReality) mPetContext.getMixedReality();
 
         mPet = new CharacterController(mPetContext);
@@ -97,9 +94,9 @@ public class PetMain extends DisableNativeSplashScreen {
         });
     }
 
-    private void configTouchScreen() {
+    public void onARInit(GVRContext ctx) {
         mCursorController = null;
-        GVRInputManager inputManager = mPetContext.getGVRContext().getInputManager();
+        GVRInputManager inputManager = ctx.getInputManager();
         inputManager.selectController((newController, oldController) -> {
             if (newController instanceof GVRGazeCursorController) {
                 ((GVRGazeCursorController) newController).setTouchScreenDepth(mSharedMixedReality.getScreenDepth());
