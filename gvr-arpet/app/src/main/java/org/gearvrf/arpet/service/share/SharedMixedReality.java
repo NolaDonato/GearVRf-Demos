@@ -123,9 +123,9 @@ public class SharedMixedReality implements IMixedReality {
     private synchronized void initAsGuest(SharedSceneObject shared) {
         shared.parent = shared.object.getParent();
         if (shared.parent != null) {
-            if (shared.parent instanceof GVRPlane) {
+            if (shared.parent.getComponent(GVRPlane.getComponentType()) != null) {
                 // TODO: Fix MR API
-                ((GVRPlane)shared.parent).setSceneObject(null);
+                shared.parent.detachComponent(GVRPlane.getComponentType());
             } else {
                 shared.parent.removeChildObject(shared.object);
             }

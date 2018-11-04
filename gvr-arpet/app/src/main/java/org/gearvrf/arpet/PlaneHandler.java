@@ -36,7 +36,9 @@ import org.gearvrf.mixedreality.IMixedReality;
 import org.gearvrf.mixedreality.IPlaneEvents;
 import org.gearvrf.physics.GVRRigidBody;
 import org.gearvrf.scene_objects.GVRCubeSceneObject;
+import org.gearvrf.utility.Log;
 import org.greenrobot.eventbus.EventBus;
+import org.joml.Vector3f;
 
 import java.util.LinkedList;
 
@@ -146,14 +148,11 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
     }
 
     private GVRSceneObject createQuadPlane() {
-        GVRMesh mesh = GVRMesh.createQuad(mContext, "float3 a_position", 1.0f, 1.0f);
+        GVRMesh mesh = GVRMesh.createQuad(mContext, "float3 a_position", 1, 1);
         GVRMaterial mat = new GVRMaterial(mContext, GVRMaterial.GVRShaderType.Phong.ID);
         GVRSceneObject polygonObject = new GVRSceneObject(mContext, mesh, mat);
-        float s = mixedReality.getARToVRScale();
         polygonObject.setName(PLANE_COLLIDER);
-        polygonObject.attachCollider(new GVRMeshCollider(mContext, true));
 
-        polygonObject.setName("Plane");
         hsvHUE += 35;
         float[] hsv = new float[3];
         hsv[0] = hsvHUE % 360;
@@ -164,11 +163,12 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         mat.setDiffuseColor(Color.red(c) / 255f, Color.green(c) / 255f,
                 Color.blue(c) / 255f, 0.5f);
         polygonObject.getRenderData().setMaterial(mat);
+        polygonObject.getRenderData().disableLight();
         polygonObject.getRenderData().setRenderingOrder(GVRRenderData.GVRRenderingOrder.TRANSPARENT);
         polygonObject.getRenderData().setAlphaBlend(true);
         polygonObject.getTransform().setRotationByAxis(-90, 1, 0, 0);
-        polygonObject.getTransform().setScale(s, s, s);
         GVRSceneObject transformNode = new GVRSceneObject(mContext);
+        transformNode.attachCollider(new GVRBoxCollider(mContext));
         transformNode.addChildObject(polygonObject);
         return transformNode;
     }
@@ -182,7 +182,7 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
     public void onStartPlaneDetection(IMixedReality mr)
     {
         mixedReality = mr;
-        mPetMain.onARInit(mContext);
+        mPetMain.onARInit(mContext, mr);
     }
 
     @Override
@@ -199,7 +199,8 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         GVRSceneObject planeGeo = createQuadPlane();
 
         planeGeo.attachComponent(plane);
-        mScene.addSceneObject(planeGeo);
+//        mScene.addSceneObject(planeGeo);
+        plane.getGVRContext().getMainScene().addSceneObject(planeGeo);
 
 
         mPlanes.add(plane);
