@@ -28,6 +28,7 @@ import org.gearvrf.arpet.mode.HudMode;
 import org.gearvrf.arpet.mode.ILoadEvents;
 import org.gearvrf.arpet.mode.IPetMode;
 import org.gearvrf.arpet.mode.OnBackToHudModeListener;
+import org.gearvrf.arpet.mode.OnClickExitScreen;
 import org.gearvrf.arpet.mode.OnModeChange;
 import org.gearvrf.arpet.mode.ShareAnchorMode;
 import org.gearvrf.arpet.movement.PetActions;
@@ -39,6 +40,8 @@ import org.gearvrf.mixedreality.GVRAnchor;
 import org.gearvrf.mixedreality.GVRPlane;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
+
+import java.util.EnumSet;
 
 
 public class PetMain extends DisableNativeSplashScreen {
@@ -60,6 +63,8 @@ public class PetMain extends DisableNativeSplashScreen {
     private CurrentSplashScreen mCurrentSplashScreen;
     private SharedMixedReality mSharedMixedReality;
 
+    private ExitApplicationScreen mExitApplicationScreen;
+
     public PetMain(PetContext petContext) {
         mPetContext = petContext;
         EventBus.getDefault().register(this);
@@ -75,6 +80,7 @@ public class PetMain extends DisableNativeSplashScreen {
         mHandlerBackToHud = new HandlerBackToHud();
 
         mPlaneHandler = new PlaneHandler(this);
+        mExitApplicationScreen = new ExitApplicationScreen(mPetContext);
 
         mPetContext.init(gvrContext, mPlaneHandler);
         mSharedMixedReality = (SharedMixedReality) mPetContext.getMixedReality();
@@ -97,6 +103,12 @@ public class PetMain extends DisableNativeSplashScreen {
     public void onARInit(GVRContext ctx) {
         mCursorController = null;
         GVRInputManager inputManager = ctx.getInputManager();
+        final int cursorDepth = 5;
+        final EnumSet<GVRPicker.EventOptions> eventOptions = EnumSet.of(
+                GVRPicker.EventOptions.SEND_TOUCH_EVENTS,
+                GVRPicker.EventOptions.SEND_TO_LISTENERS,
+                GVRPicker.EventOptions.SEND_TO_HIT_OBJECT);
+
         inputManager.selectController((newController, oldController) -> {
             if (newController instanceof GVRGazeCursorController) {
                 ((GVRGazeCursorController) newController).setTouchScreenDepth(mSharedMixedReality.getScreenDepth());
@@ -107,6 +119,9 @@ public class PetMain extends DisableNativeSplashScreen {
                 mCursorController.removePickEventListener(mTouchEventsHandler);
             }
             newController.addPickEventListener(mTouchEventsHandler);
+            newController.setCursorDepth(cursorDepth);
+            newController.getPicker().setPickClosest(false);
+            newController.getPicker().setEventOptions(eventOptions);
             mCursorController = newController;
         });
     }
@@ -130,9 +145,21 @@ public class PetMain extends DisableNativeSplashScreen {
         }
 
         if (mCurrentMode instanceof HudMode || mCurrentMode == null) {
-            getGVRContext().getActivity().finish();
-            android.os.Process.killProcess(android.os.Process.myPid());
-            System.exit(1);
+            mExitApplicationScreen.onShow(mPetContext.getMainScene());
+            mExitApplicationScreen.setClickExitScreenListener(new OnClickExitScreen() {
+                @Override
+                public void OnCancel() {
+                    mExitApplicationScreen.onHide(mPetContext.getMainScene());
+                }
+
+                @Override
+                public void OnConfirm() {
+                    getGVRContext().getActivity().finish();
+                    android.os.Process.killProcess(android.os.Process.myPid());
+                    System.exit(1);
+                }
+            });
+
         }
         return true;
     }
@@ -249,15 +276,15 @@ public class PetMain extends DisableNativeSplashScreen {
         @Override
         public void onTouchEnd(GVRSceneObject gvrSceneObject, GVRPicker.GVRPickedObject gvrPickedObject) {
             Log.d(TAG, "onTouchEnd " + gvrSceneObject.getName());
-            GVRPlane plane = (GVRPlane) gvrSceneObject.getComponent(GVRPlane.getComponentType());
-            if (plane != null) {
+
+            // TODO: Improve this if
+            if (gvrSceneObject != null && gvrSceneObject.getParent() instanceof GVRPlane) {
                 final float[] modelMtx = gvrSceneObject.getTransform().getModelMatrix();
-                final float[] hitPos = gvrPickedObject.hitLocation;
+
 
                 if (!mPet.isRunning()) {
-                    mPet.setPlane(plane);
-                    mPet.getView().updatePose(modelMtx);
-                    //mPet.setAnchor(mPetContext.getMixedReality().createAnchor(modelMtx));
+                    mPet.setPlane(gvrSceneObject);
+                    mPet.getView().getTransform().setPosition(modelMtx[12], modelMtx[13], modelMtx[14]);
                     mPet.enter();
                     mPet.setInitialScale();
                     mPet.enableActions();
@@ -266,11 +293,13 @@ public class PetMain extends DisableNativeSplashScreen {
                         mCurrentMode = new HudMode(mPetContext, mPet, mHandlerModeChange);
                         mCurrentMode.enter();
                     }
-
-                    mPlaneHandler.stopTracking(plane);
+                    mPlaneHandler.setSelectedPlane((GVRPlane)gvrSceneObject.getParent());
                 }
 
-                mPet.goToTap(hitPos[0], hitPos[1], hitPos[2]);
+                if (gvrSceneObject ==  mPet.getPlane()) {
+                    final float[] hitPos = gvrPickedObject.hitLocation;
+                    mPet.goToTap(hitPos[0], hitPos[1], hitPos[2]);
+                }
             }
         }
 

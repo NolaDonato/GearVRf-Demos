@@ -51,9 +51,7 @@ public class BallThrowHandler {
     private static final float defaultPositionY = 0f;
     private static final float defaultPositionZ = -40f;
 
-    private static final float defaultScaleX = 40f;
-    private static final float defaultScaleY = 40f;
-    private static final float defaultScaleZ = 40f;
+    private static final float defaultScale = 20;
 
     private static final float MIN_Y_OFFSET = 3 * 100;
 
@@ -137,13 +135,13 @@ public class BallThrowHandler {
         createBoneCollider();
 
         mBall.getTransform().setPosition(defaultPositionX, defaultPositionY, defaultPositionZ);
-        mBall.getTransform().setScale(defaultScaleX, defaultScaleY, defaultScaleZ);
+        mBall.getTransform().setScale(defaultScale, defaultScale, defaultScale);
 
         mRigidBody = new GVRRigidBody(mPetContext.getGVRContext(), 5.0f);
         mRigidBody.setRestitution(0.5f);
         mRigidBody.setFriction(0.5f);
         mRigidBody.setCcdMotionThreshold(0.001f);
-        mRigidBody.setCcdSweptSphereRadius(5f);
+        mRigidBody.setCcdSweptSphereRadius(2f);
 
         mBall.attachComponent(mRigidBody);
         mRigidBody.setEnable(false);
@@ -228,12 +226,12 @@ public class BallThrowHandler {
 
     // FIXME: Why multiply by root matrix?
     private void throwLocalBall(Vector3f forceVector) {
-        Matrix4f rootMatrix = mPetContext.getMainScene().getRoot().getTransform().getModelMatrix4f();
-        rootMatrix.invert();
+        //Matrix4f rootMatrix = mPetContext.getMainScene().getRoot().getTransform().getModelMatrix4f();
+        //rootMatrix.invert();
 
         // Calculating the new model matrix (T') for the ball: T' = iP x T
         Matrix4f ballMatrix = mBall.getTransform().getModelMatrix4f();
-        rootMatrix.mul(ballMatrix, ballMatrix);
+        //rootMatrix.mul(ballMatrix, ballMatrix);
 
         // Add the ball as physics root child...
         mBall.getParent().removeChildObject(mBall);
@@ -246,7 +244,7 @@ public class BallThrowHandler {
         Matrix4f playerMatrix = mPlayer.getTransform().getModelMatrix4f();
 
         // ... And same transformation is required
-        rootMatrix.mul(playerMatrix, playerMatrix);
+        //rootMatrix.mul(playerMatrix, playerMatrix);
         Quaternionf q = new Quaternionf();
         q.setFromNormalized(playerMatrix);
         forceVector.rotate(q);
@@ -274,7 +272,7 @@ public class BallThrowHandler {
             parent.removeChildObject(mBall);
         }
         mBall.getTransform().setPosition(defaultPositionX, defaultPositionY, defaultPositionZ);
-        mBall.getTransform().setScale(defaultScaleX, defaultScaleY, defaultScaleZ);
+        mBall.getTransform().setScale(defaultScale, defaultScale, defaultScale);
         mBall.getTransform().setRotation(1, 0, 0, 0);
 
         mPlayer.addChildObject(mBall);

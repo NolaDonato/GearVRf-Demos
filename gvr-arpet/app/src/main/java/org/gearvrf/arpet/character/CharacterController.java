@@ -23,9 +23,9 @@ import android.util.SparseArray;
 import org.gearvrf.GVRCameraRig;
 import org.gearvrf.GVRDrawFrameListener;
 import org.gearvrf.GVRSceneObject;
+import org.gearvrf.GVRTransform;
 import org.gearvrf.arpet.BallThrowHandler;
 import org.gearvrf.arpet.PetContext;
-import org.gearvrf.arpet.constant.ArPetObjectType;
 import org.gearvrf.arpet.mode.BasePetMode;
 import org.gearvrf.arpet.mode.ILoadEvents;
 import org.gearvrf.arpet.movement.IPetAction;
@@ -39,8 +39,6 @@ import org.gearvrf.arpet.service.MessageService;
 import org.gearvrf.arpet.service.SimpleMessageReceiver;
 import org.gearvrf.arpet.service.data.PetActionCommand;
 import org.gearvrf.arpet.service.share.SharedMixedReality;
-import org.gearvrf.mixedreality.GVRAnchor;
-import org.gearvrf.mixedreality.GVRPlane;
 import org.gearvrf.utility.Log;
 
 public class CharacterController extends BasePetMode {
@@ -52,7 +50,7 @@ public class CharacterController extends BasePetMode {
 
     private SharedMixedReality mMixedReality;
     private IMessageService mMessageService;
-    private GVRSceneObject mTapObject;
+    private boolean mIsPlaying = false;
 
     private class LocalMessageReceiver extends SimpleMessageReceiver {
 
@@ -119,22 +117,16 @@ public class CharacterController extends BasePetMode {
 
         addAction(new PetActions.TO_PLAYER(pet, mPetContext.getPlayer(), action -> {
             setCurrentAction(PetActions.IDLE.ID);
-            // TODO: Improve this Ball handler api
-            mBallThrowHandler.enable();
-            mBallThrowHandler.reset();
         }));
 
-        addAction( new PetActions.GRAB(pet, mBallThrowHandler.getBall(), new OnPetActionListener() {
+        addAction(new PetActions.GRAB(pet, mBallThrowHandler.getBall(), new OnPetActionListener() {
             @Override
             public void onActionEnd(IPetAction action) {
                 setCurrentAction(PetActions.TO_PLAYER.ID);
-                mBallThrowHandler.disable();
-                grabBall(mBallThrowHandler.getBall());
             }
         }));
 
-        mTapObject = new GVRSceneObject(mPetContext.getGVRContext());
-        addAction(new PetActions.TO_TAP(pet, mTapObject, action -> setCurrentAction(PetActions.IDLE.ID)));
+        addAction(new PetActions.TO_TAP(pet, pet.getTapObject(), action -> setCurrentAction(PetActions.IDLE.ID)));
 
         addAction(new PetActions.AT_EDIT(mPetContext, pet));
 
@@ -145,13 +137,13 @@ public class CharacterController extends BasePetMode {
         if (mCurrentAction == null
                 || mCurrentAction.id() == PetActions.IDLE.ID
                 || mCurrentAction.id() == PetActions.TO_TAP.ID) {
-            mTapObject.getTransform().setPosition(x, y, z);
+            ((CharacterView)mModeScene).setTapPosition(x, y, z);
             setCurrentAction(PetActions.TO_TAP.ID);
         }
     }
 
     public void grabBall(GVRSceneObject ball) {
-        GVRSceneObject pivot = ((CharacterView)mModeScene).getGrabPivot();
+        GVRSceneObject pivot = ((CharacterView) mModeScene).getGrabPivot();
 
         if (pivot != null) {
             if (ball.getParent() != null) {
@@ -160,8 +152,10 @@ public class CharacterController extends BasePetMode {
             // FIXME: The ball should be attached to pet's bone(pivot) to
             // have walking animation.
 
+            GVRTransform t = ((CharacterView) mModeScene).getTransform();
+
             ball.getTransform().setRotation(1, 0, 0, 0);
-            ball.getTransform().setPosition(0, 0.48f, 0.42f);
+            ball.getTransform().setPosition(0, 0.3f, 0.42f);
             ball.getTransform().setScale(0.36f, 0.36f, 0.36f);
 
             ((CharacterView) mModeScene).addChildObject(ball);
@@ -170,32 +164,25 @@ public class CharacterController extends BasePetMode {
     }
 
     public void playBall() {
+        mIsPlaying = true;
+        mBallThrowHandler.reset();
         mBallThrowHandler.enable();
     }
 
     public void stopBall() {
+        mIsPlaying = false;
         mBallThrowHandler.disable();
     }
 
-    public void setPlane(GVRPlane plane) {
+    public void setPlane(GVRSceneObject plane) {
         CharacterView petView = (CharacterView) view();
-        GVRSceneObject planeOwner;
-
-        if (petView.getBoundaryPlane() != null) {
-            planeOwner = petView.getBoundaryPlane().getOwnerObject();
-            planeOwner.removeChildObject(mTapObject);
-            mPetContext.unregisterSharedObject(planeOwner);
-        }
-
-        planeOwner = plane.getOwnerObject();
-        planeOwner.addChildObject(mTapObject);
-        mPetContext.registerSharedObject(planeOwner, ArPetObjectType.PLANE);
-
         petView.setBoundaryPlane(plane);
     }
 
-    public GVRPlane getPlane() {
-        return ((CharacterView) view()).getBoundaryPlane();
+    public GVRSceneObject getPlane() {
+        CharacterView petView = (CharacterView) view();
+
+        return petView.getBoundaryPlane();
     }
 
     public CharacterView getView() {
@@ -209,6 +196,16 @@ public class CharacterController extends BasePetMode {
 
     private void onSetCurrentAction(@PetActionType int action) {
         mCurrentAction = mPetActions.get(action);
+
+        if (mIsPlaying || mPetContext.getMode() == SharedMixedReality.GUEST) {
+            if (mCurrentAction.id() == PetActions.IDLE.ID) {
+                mBallThrowHandler.reset();
+                mBallThrowHandler.enable();
+            } else if (mCurrentAction.id() == PetActions.TO_PLAYER.ID) {
+                mBallThrowHandler.disable();
+                grabBall(mBallThrowHandler.getBall());
+            }
+        }
     }
 
     private void onSendCurrentAction(@PetActionType int action) {
@@ -271,7 +268,6 @@ public class CharacterController extends BasePetMode {
             // FIXME: Move this to a proper place
             if (mBallThrowHandler.canBeReseted() && activeAction != null) {
                 setCurrentAction(PetActions.IDLE.ID);
-                mBallThrowHandler.reset();
             }
         }
     }

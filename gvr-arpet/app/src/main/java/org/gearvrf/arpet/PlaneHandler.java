@@ -26,6 +26,7 @@ import org.gearvrf.GVRDrawFrameListener;
 import org.gearvrf.GVRMaterial;
 import org.gearvrf.GVRMesh;
 import org.gearvrf.GVRRenderData;
+import org.gearvrf.GVRMeshCollider;
 import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
 import org.gearvrf.mixedreality.GVRPlane;
@@ -34,8 +35,8 @@ import org.gearvrf.mixedreality.IMixedReality;
 import org.gearvrf.mixedreality.IMixedReality;
 import org.gearvrf.mixedreality.IPlaneEvents;
 import org.gearvrf.physics.GVRRigidBody;
+import org.gearvrf.scene_objects.GVRCubeSceneObject;
 import org.greenrobot.eventbus.EventBus;
-import org.joml.Matrix4f;
 
 import java.util.LinkedList;
 
@@ -47,8 +48,11 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
     private int hsvHUE = 0;
 
     private boolean planeDetected = false;
-    private GVRPlane petPlane = null;
+    private GVRSceneObject selectedPlaneObject = null;
+    private PlaneBoard physicsPlane = null;
     public final static String PLANE_NAME = "Plane";
+    public final static String PLANE_PHYSICS = "Plane Physics";
+    public final static String PLANE_COLLIDER = "Plane Collider";
 
     // FIXME: move this to a utils or helper class
     private static long newComponentType(Class<? extends GVRComponent> clazz) {
@@ -63,57 +67,50 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
     // will "follow" the A.R. plane that owns it so that it will work as if this plane has physics
     // attached to it.
     private final class PlaneBoard extends GVRComponent {
-        private GVRPlane plane;
-        private GVRSceneObject box;
+        private GVRSceneObject physicsObject;
 
         PlaneBoard(GVRContext gvrContext) {
             super(gvrContext, 0);
 
             mType = PLANEBOARD_COMP_TYPE;
 
-            box = new GVRSceneObject(gvrContext);
+            physicsObject = new GVRSceneObject(gvrContext);
 
             GVRBoxCollider collider = new GVRBoxCollider(gvrContext);
             collider.setHalfExtents(0.5f, 0.5f, 0.5f);
-            box.attachComponent(collider);
+            physicsObject.attachComponent(collider);
             // To touch debug
-            box.setName("Plane collider");
+            physicsObject.setName(PLANE_PHYSICS);
 
             // Uncomment if you want a green box to appear at the center of the invisible board.
             // Notice this green box is smaller than the board
-//            GVRMaterial green = new GVRMaterial(gvrContext, GVRMaterial.GVRShaderType.Phong.ID);
-//            green.setDiffuseColor(0f, 1f, 0f, 1f);
-//            GVRSceneObject mark = new GVRCubeSceneObject(gvrContext, true);
-//            mark.getRenderData().setMaterial(green);
-//            mark.getRenderData().setAlphaBlend(true);
-//            mark.getTransform().setScale(0.3f, 0.3f, 1.1f);
-//            box.addChildObject(mark);
+            final boolean debugPhysics = false;
+            if (debugPhysics) {
+                GVRMaterial green = new GVRMaterial(gvrContext, GVRMaterial.GVRShaderType.Phong.ID);
+                green.setDiffuseColor(0f, 1f, 0f, 1f);
+                GVRSceneObject mark = new GVRCubeSceneObject(gvrContext, true);
+                mark.getRenderData().setMaterial(green);
+                mark.getRenderData().setAlphaBlend(true);
+                physicsObject.addChildObject(mark);
+            }
         }
 
         @Override
         public void onAttach(GVRSceneObject newOwner) {
-            plane = (GVRPlane) newOwner.getComponent(GVRPlane.getComponentType());
-            if (plane == null) {
-                throw new RuntimeException("PlaneBoard can only be attached to a GVRPlane");
-            }
             super.onAttach(newOwner);
-            mScene.addSceneObject(box);
+            mScene.addSceneObject(physicsObject);
         }
 
         @Override
         public void onDetach(GVRSceneObject oldOwner) {
             super.onDetach(oldOwner);
-
-            plane = null;
-            mScene.removeSceneObject(box);
+            mScene.removeSceneObject(physicsObject);
         }
 
         private void setBoxTransform() {
-            Matrix4f targetMtx = plane.getTransform().getModelMatrix4f();
-            rootInvMat.mul(targetMtx, targetMtx);
-
-            box.getTransform().setModelMatrix(targetMtx);
-            box.getTransform().setScaleZ(1f);
+            float[] targetMtx = owner.getTransform().getModelMatrix();
+            physicsObject.getTransform().setModelMatrix(targetMtx);
+            physicsObject.getTransform().setScaleZ(1f);
         }
 
         void update() {
@@ -123,14 +120,14 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
 
             setBoxTransform();
 
-            GVRRigidBody board = (GVRRigidBody) box.getComponent(GVRRigidBody.getComponentType());
+            GVRRigidBody board = (GVRRigidBody) physicsObject.getComponent(GVRRigidBody.getComponentType());
             if (board == null) {
                 board = new GVRRigidBody(mContext, 0f);
                 board.setRestitution(0.5f);
                 board.setFriction(1.0f);
                 board.setCcdMotionThreshold(0.001f);
-                board.setCcdSweptSphereRadius(5f);
-                box.attachComponent(board);
+                board.setCcdSweptSphereRadius(2f);
+                physicsObject.attachComponent(board);
             }
 
             // This will update rigid body according to owner's transform
@@ -152,8 +149,9 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         GVRMesh mesh = GVRMesh.createQuad(mContext, "float3 a_position", 1.0f, 1.0f);
         GVRMaterial mat = new GVRMaterial(mContext, GVRMaterial.GVRShaderType.Phong.ID);
         GVRSceneObject polygonObject = new GVRSceneObject(mContext, mesh, mat);
-        GVRBoxCollider collider = new GVRBoxCollider(mContext);
         float s = mixedReality.getARToVRScale();
+        polygonObject.setName(PLANE_COLLIDER);
+        polygonObject.attachCollider(new GVRMeshCollider(mContext, true));
 
         polygonObject.setName("Plane");
         hsvHUE += 35;
@@ -171,7 +169,6 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         polygonObject.getTransform().setRotationByAxis(-90, 1, 0, 0);
         polygonObject.getTransform().setScale(s, s, s);
         GVRSceneObject transformNode = new GVRSceneObject(mContext);
-        transformNode.attachCollider(collider);
         transformNode.addChildObject(polygonObject);
         return transformNode;
     }
@@ -196,7 +193,7 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         GVRPlane.Type planeType = plane.getPlaneType();
 
         // Don't use planes that are downward facing, e.g ceiling
-        if (planeType == GVRPlane.Type.HORIZONTAL_DOWNWARD_FACING || petPlane != null) {
+        if (planeType == GVRPlane.Type.HORIZONTAL_DOWNWARD_FACING || selectedPlaneObject != null) {
             return;
         }
         GVRSceneObject planeGeo = createQuadPlane();
@@ -204,15 +201,14 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         planeGeo.attachComponent(plane);
         mScene.addSceneObject(planeGeo);
 
-        PlaneBoard board = new PlaneBoard(mContext);
-        planeGeo.attachComponent(board);
+
         mPlanes.add(plane);
 
         if (!planeDetected && planeType == GVRPlane.Type.HORIZONTAL_UPWARD_FACING) {
             planeDetected = true;
 
             // Now physics starts working and then boards must be continuously updated
-            mContext.registerDrawFrameListener(this);
+
         }
     }
 
@@ -230,44 +226,37 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         // Will remove PlaneBoard from childPlane because this plane is not needed anymore now
         // that parentPlane "contains" childPlane
         childPlane.getOwnerObject().detachComponent(PLANEBOARD_COMP_TYPE);
-
         mPlanes.remove(childPlane);
     }
 
-    public void stopTracking(GVRPlane mainPlane) {
+    public void setSelectedPlane(GVRPlane mainPlane) {
         for (GVRPlane plane: mPlanes) {
             if (plane != mainPlane) {
-                plane.setEnable(false);
+                plane.setEnable(mainPlane == null);
             }
         }
 
-        petPlane = mainPlane;
-        petPlane.getOwnerObject().setName(PLANE_NAME);
-        EventBus.getDefault().post(new PlaneDetectedEvent(petPlane));
-    }
-
-    public void resumeTracking() {
-        for (GVRPlane plane: mPlanes) {
-            plane.setEnable(true);
+        if (selectedPlaneObject != null) {
+            selectedPlaneObject.detachComponent(PLANEBOARD_COMP_TYPE);
         }
 
-        petPlane = null;
-    }
+        if (mainPlane != null) {
+            selectedPlaneObject = mainPlane.getOwnerObject();
+            selectedPlaneObject.attachComponent(physicsPlane);
 
-    private Matrix4f rootInvMat = new Matrix4f();
+            selectedPlaneObject.setName(PLANE_NAME);
+            EventBus.getDefault().post(new PlaneDetectedEvent(mainPlane));
+            mContext.registerDrawFrameListener(this);
+        } else {
+            mContext.unregisterDrawFrameListener(this);
+            selectedPlaneObject = null;
+        }
+    }
 
     @Override
     public void onDrawFrame(float t) {
-        updatePlanes = !updatePlanes;
-
-        // Updates on the boards must be synchronized with A.R. updates but can be postponed to
-        // the next cycle
-        if (!updatePlanes) return;
-
-        rootInvMat.set(mScene.getRoot().getTransform().getModelMatrix());
-        rootInvMat.invert();
-        for (GVRPlane plane : mPlanes) {
-            ((PlaneBoard) plane.getComponent(PLANEBOARD_COMP_TYPE)).update();
+        if (selectedPlaneObject != null) {
+            ((PlaneBoard) selectedPlaneObject.getComponent(PLANEBOARD_COMP_TYPE)).update();
         }
     }
 }

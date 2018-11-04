@@ -19,10 +19,11 @@ import android.opengl.GLES30;
 import android.support.annotation.NonNull;
 
 import org.gearvrf.GVRAndroidResource;
-import org.gearvrf.GVRBoxCollider;
 import org.gearvrf.GVRContext;
 import org.gearvrf.GVRMaterial;
 import org.gearvrf.GVRMesh;
+import org.gearvrf.GVRMeshCollider;
+import org.gearvrf.GVRPicker;
 import org.gearvrf.GVRRenderData;
 import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
@@ -35,11 +36,13 @@ import org.gearvrf.animation.GVRAvatar;
 import org.gearvrf.animation.GVRRepeatMode;
 import org.gearvrf.arpet.PetContext;
 import org.gearvrf.arpet.R;
+import org.gearvrf.arpet.constant.ArPetObjectType;
 import org.gearvrf.arpet.gesture.OnScaleListener;
 import org.gearvrf.arpet.gesture.ScalableObject;
 import org.gearvrf.arpet.gesture.impl.ScaleGestureDetector;
 import org.gearvrf.arpet.mode.ILoadEvents;
 import org.gearvrf.arpet.mode.IPetView;
+import org.gearvrf.arpet.service.share.SharedMixedReality;
 import org.gearvrf.arpet.shaders.GVRTiledMaskShader;
 import org.gearvrf.arpet.util.LoadModelHelper;
 import org.gearvrf.mixedreality.GVRPlane;
@@ -60,45 +63,31 @@ public class CharacterView extends GVRSceneObject implements
 
     private List<OnScaleListener> mOnScaleListeners = new ArrayList<>();
 
-    private GVRPlane mBoundaryPlane;
+    private GVRSceneObject mBoundaryPlane = null;
     private float[] mPlaneCenterPose = new float[16];
     private GVRSceneObject mShadow;
     private GVRSceneObject mInfinityPlan;
-    public final static String PET_COLLIDER = "Pet collider";
-
+    public final static String PET_COLLIDER = "corpo_GEO";  // From 3D model
+    private final PetContext mPetContext;
     private GVRSceneObject m3DModel;
     private GVRAvatar mPetAvatar;
     private String mBoneMap;
     protected ILoadEvents mLoadListener = null;
+    private GVRSceneObject mTapObject;
 
-    CharacterView(@NonNull GVRContext context) {
-        super(context);
+    CharacterView(@NonNull PetContext petContext) {
+        super(petContext.getGVRContext());
+
+        mPetContext = petContext;
+        mTapObject = new GVRSceneObject(mPetContext.getGVRContext());
     }
 
-    private void createDragCollider() {
-        final boolean showCollider = false;
-        GVRSceneObject cube;
-        final GVRContext ctx = getGVRContext();
+    public GVRSceneObject getTapObject() {
+         return mTapObject;
+    }
 
-        // To debug the  collision
-        if (!showCollider) {
-            cube = new GVRSceneObject(getGVRContext());
-        }  else {
-            GVRMaterial material = new GVRMaterial(ctx, GVRMaterial.GVRShaderType.Color.ID);
-            material.setColor(1, 0, 0);
-            cube = new GVRCubeSceneObject(ctx, true, material);
-            cube.getRenderData().setDrawMode(GLES30.GL_LINE_LOOP);
-        }
-
-        GVRBoxCollider collider = new GVRBoxCollider(ctx);
-        collider.setHalfExtents(0.4f, 0.4f, 0.4f);
-        cube.attachCollider(collider);
-
-        cube.getTransform().setPosition(0, 0.2f, 0);
-        cube.getTransform().setScale(0.2f, 0.5f, 0.5f);
-
-        cube.setName(PET_COLLIDER);
-        addChildObject(cube);
+    public void setTapPosition(float x, float y, float z) {
+        mTapObject.getTransform().setPosition(x, y, z);
     }
 
     public GVRAnimator getAnimation(int i) {
@@ -170,17 +159,42 @@ public class CharacterView extends GVRSceneObject implements
     }
 
     public boolean updatePose(float[] poseMatrix) {
+        if (mPetContext.getMode() != SharedMixedReality.GUEST) {
+            float[] planeModel = mBoundaryPlane.getTransform().getModelMatrix();
+            Vector3f centerPlane = new Vector3f(planeModel[12], planeModel[13], planeModel[14]);
+            poseMatrix[13] = planeModel[13];
+
+            final boolean infinityPlane = false;
+            if (!infinityPlane) {
+                GVRPicker.GVRPickedObject pickedObject = GVRPicker.pickSceneObject(mBoundaryPlane,
+                        0, 0, 0, poseMatrix[12], poseMatrix[13], poseMatrix[14]);
+                float[] petModel = getTransform().getModelMatrix();
+                if (pickedObject == null && centerPlane.distance(petModel[12], petModel[13], petModel[14])
+                        < centerPlane.distance(poseMatrix[12], poseMatrix[13], poseMatrix[14])) {
+                    return false;
+                }
+            }
+        }
+
         getTransform().setModelMatrix(poseMatrix);
 
         return true;
     }
 
-    public void setBoundaryPlane(GVRPlane boundary) {
+    public void setBoundaryPlane(GVRSceneObject boundary) {
+        if (mBoundaryPlane != null) {
+            mBoundaryPlane.removeChildObject(mTapObject);
+            mPetContext.unregisterSharedObject(mBoundaryPlane);
+        }
+
+        boundary.addChildObject(mTapObject);
+        mPetContext.registerSharedObject(boundary, ArPetObjectType.PLANE);
+
         mPlaneCenterPose = boundary.getTransform().getModelMatrix();
         mBoundaryPlane = boundary;
     }
 
-    public GVRPlane getBoundaryPlane() {
+    public GVRSceneObject getBoundaryPlane() {
          return mBoundaryPlane;
     }
 
@@ -196,12 +210,12 @@ public class CharacterView extends GVRSceneObject implements
 
     public void startDragging() {
         mShadow.setEnable(true);
-        m3DModel.getTransform().setPositionY(0.2f);
+        m3DModel.getTransform().setPositionY(0.4f);
     }
 
     public void stopDragging() {
         mShadow.setEnable(false);
-        m3DModel.getTransform().setPositionY(0.0f);
+        m3DModel.getTransform().setPositionY(0.2f);
     }
 
     public boolean isDragging() {
@@ -242,8 +256,6 @@ public class CharacterView extends GVRSceneObject implements
 
         // createInfinityPlan();
 
-        createDragCollider();
-
         mBoneMap = LoadModelHelper.readFile(gvrContext, LoadModelHelper.PET_BONES_MAP_PATH);
         mPetAvatar = new GVRAvatar(gvrContext, "PetModel");
         mPetAvatar.getEventReceiver().addListener(mAvatarListener);
@@ -269,18 +281,16 @@ public class CharacterView extends GVRSceneObject implements
      * Sets the initial scale according to the distance between the pet and camera
      */
     public void setInitialScale() {
-        final float MIN_DISTANCE = 100f;
         Vector3f vectorDistance = new Vector3f();
         float[] modelCam = getGVRContext().getMainScene().getMainCameraRig().getTransform().getModelMatrix();
         float[] modelCharacter = getTransform().getModelMatrix();
 
         vectorDistance.set(modelCam[12], modelCam[13], modelCam[14]);
         // Calculates the distance in centimeters
-        float distance = vectorDistance.distance(modelCharacter[12], modelCharacter[13], modelCharacter[14]);
+        float factor = 0.5f * vectorDistance.distance(modelCharacter[12], modelCharacter[13], modelCharacter[14]);
+        float scale = Math.max(ScaleGestureDetector.MIN_FACTOR, Math.min(factor, ScaleGestureDetector.MAX_FACTOR));
 
-        if (distance < MIN_DISTANCE) {
-            scale(ScaleGestureDetector.MIN_FACTOR);
-        }
+        scale(scale);
     }
 
     public GVRSceneObject getGrabPivot() {
@@ -331,7 +341,13 @@ public class CharacterView extends GVRSceneObject implements
                         m3DModel = gvrSceneObject;
 
                         m3DModel.getTransform().setScale(0.003f, 0.003f, 0.003f);
-                        m3DModel.getTransform().setPosition(0, 0.4f, 0);
+                        m3DModel.getTransform().setPosition(0, 0.2f, 0);
+                        // Get the pet's body from 3D model
+                        GVRSceneObject body = m3DModel.getSceneObjectByName(PET_COLLIDER);
+                        if (body != null) {
+                            // Create a mesh collider and attach it to the body
+                            body.attachCollider(new GVRMeshCollider(mPetContext.getGVRContext(), true));
+                        }
                         CharacterView.this.addChildObject(m3DModel);
                     }
                 });

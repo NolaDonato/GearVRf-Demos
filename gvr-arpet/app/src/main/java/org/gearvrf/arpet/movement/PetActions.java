@@ -57,10 +57,10 @@ public class PetActions {
         protected final Vector3f mTargetDirection = new Vector3f();
         protected final Vector3f mMoveTo = new Vector3f();
 
-        protected final float mCharacterHalfSize = 25.0f;
+        protected float mPetRadius = 1.0f;
         protected float mTurnSpeed = 5f;
-        protected final float mWalkingSpeed = 25f;
-        protected final float mRunningSpeed = 100f;
+        protected float mWalkingSpeed = 25f;
+        protected float mRunningSpeed = 100f;
         protected float mElapsedTime = 0;
         protected float mAnimDuration = 0;
         protected GVRAnimator mAnimation;
@@ -98,6 +98,10 @@ public class PetActions {
 
         @Override
         public void entry() {
+            mPetRadius = mCharacter.getBoundingVolume().radius;
+            mRunningSpeed = mPetRadius * 2;
+            mWalkingSpeed = mPetRadius * 0.7f;
+
             mElapsedTime = 0;
             onEntry();
             if (mAnimation != null) {
@@ -213,27 +217,22 @@ public class PetActions {
         public void onRun(float frameTime) {
             mTargetDirection.y = 0;
             // Keep a angle of 45 degree of distance
-            boolean moveTowardToCam = mTargetDirection.length() > 2 * mCharacterHalfSize;
+            boolean moveTowardToCam = mTargetDirection.length() > mPetRadius * 1.5f;
 
             if (moveTowardToCam) {
                 if (mAnimation != null) {
                     animate(frameTime);
                 }
 
-                mRotation.rotationTo(mPetDirection.x, 0, mPetDirection.z,
-                        mTargetDirection.x, 0, mTargetDirection.z);
+                float[] pose = mCharacter.getTransform().getModelMatrix();
+                mMoveTo.mul(mWalkingSpeed * frameTime);
 
-                // Looks better without this if for walking movement
-                //if (mRotation.angle() < Math.PI * 0.25f) {
-                    // acceleration logic
-                    float[] pose = mCharacter.getTransform().getModelMatrix();
-                    mMoveTo.mul(mWalkingSpeed * frameTime);
+                pose[12] = pose[12] + mMoveTo.x;
+                pose[14] = pose[14] + mMoveTo.z;
 
-                    pose[12] = pose[12] + mMoveTo.x;
-                    pose[14] = pose[14] + mMoveTo.z;
-
-                    mCharacter.updatePose(pose);
-                //}
+                if (!mCharacter.updatePose(pose) && mRotation.angle() < 0.2f) {
+                    mListener.onActionEnd(this);
+                }
             } else {
                 mListener.onActionEnd(this);
             }
@@ -289,7 +288,7 @@ public class PetActions {
         public void onRun(float frameTime) {
 
             // Min distance to ball
-            boolean moveTowardToBall = mTargetDirection.length() > mCharacterHalfSize * 0.5f;
+            boolean moveTowardToBall = mTargetDirection.length() > mPetRadius * 0.7f;
 
             if (moveTowardToBall) {
                 if (mAnimation != null) {
@@ -392,7 +391,7 @@ public class PetActions {
         public void onRun(float frameTime) {
             mTargetDirection.y = 0;
             // Keep a angle of 45 degree of distance
-            boolean moveTowardToCam = mTargetDirection.length() > mCharacterHalfSize * 0.5f;
+            boolean moveTowardToCam = mTargetDirection.length() > mPetRadius * 0.5f;
 
             if (moveTowardToCam) {
                 if (mAnimation != null) {
