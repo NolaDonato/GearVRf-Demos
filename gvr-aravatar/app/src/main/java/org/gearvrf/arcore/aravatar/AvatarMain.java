@@ -27,17 +27,17 @@ import org.gearvrf.GVRPicker;
 import org.gearvrf.GVRPointLight;
 import org.gearvrf.GVRScene;
 import org.gearvrf.GVRSceneObject;
-import org.gearvrf.animation.GVRAnimation;
-import org.gearvrf.animation.GVRAnimator;
 import org.gearvrf.animation.GVRAvatar;
 import org.gearvrf.animation.GVRRepeatMode;
 import org.gearvrf.mixedreality.GVRAnchor;
 import org.gearvrf.mixedreality.GVRHitResult;
+import org.gearvrf.mixedreality.GVRLightEstimate;
 import org.gearvrf.mixedreality.GVRMixedReality;
 import org.gearvrf.mixedreality.GVRPlane;
 import org.gearvrf.mixedreality.GVRTrackingState;
-import org.gearvrf.mixedreality.IAnchorEventsListener;
-import org.gearvrf.mixedreality.IPlaneEventsListener;
+import org.gearvrf.mixedreality.IAnchorEvents;
+import org.gearvrf.mixedreality.IMixedReality;
+import org.gearvrf.mixedreality.IPlaneEvents;
 
 public class AvatarMain extends GVRMain {
     private static String TAG = "ARAVATAR";
@@ -45,52 +45,68 @@ public class AvatarMain extends GVRMain {
     private GVRScene          mScene;
     private GVRAvatar         mAvatar;
     private GVRMixedReality   mMixedReality;
-    private AssetFactory      mAssets;
+    private SceneUtils        mUtility;
     private TouchHandler      mTouchHandler;
     private SelectionHandler  mSelector;
     private GVRDirectLight    mSceneLight;
-    private String            mAvatarName = "YBot";
+    private AvatarManager     mAvManager;
 
     @Override
     public void onInit(GVRContext gvrContext)
     {
         mContext = gvrContext;
         mScene = mContext.getMainScene();
-        mAssets = new AssetFactory();
+        mUtility = new SceneUtils();
         mTouchHandler = new TouchHandler();
         mSelector = new SelectionHandler(gvrContext);
-        mSceneLight = mAssets.makeSceneLight(gvrContext);
+        mSceneLight = mUtility.makeSceneLight(gvrContext);
         mScene.addSceneObject(mSceneLight.getOwnerObject());
-        mAvatar = mAssets.loadAvatar(mContext, mAvatarName);
+        mAvManager = new AvatarManager(mContext, null);
+        mAvatar = mAvManager.selectAvatar("EVA");
         if (mAvatar == null)
         {
-            Log.e(TAG, "Avatar could not be loaded");
+            Log.e(TAG, "Avatar could not be found");
         }
-        mAssets.initCursorController(gvrContext, mTouchHandler);
+        mAvManager.loadModel();
         mMixedReality = new GVRMixedReality(mContext);
-        mMixedReality.registerPlaneListener(planeEventsListener);
-        mMixedReality.registerAnchorListener(anchorEventsListener);
+        mMixedReality.getEventReceiver().addListener(planeEventsListener);
+        mMixedReality.getEventReceiver().addListener(anchorEventsListener);
         mMixedReality.resume();
     }
 
     @Override
     public void onStep()
     {
-        float light = mMixedReality.getLightEstimate().getPixelIntensity() * 1.5f;
-        mSceneLight.setAmbientIntensity(light, light, light, 1);
-        mSceneLight.setDiffuseIntensity(light, light, light, 1);
-        mSceneLight.setSpecularIntensity(light, light, light, 1);
+        GVRLightEstimate lightEstimate = mMixedReality.getLightEstimate();
+        if (lightEstimate != null)
+        {
+            float light = lightEstimate.getPixelIntensity() * 1.5f;
+            mSceneLight.setAmbientIntensity(light, light, light, 1);
+            mSceneLight.setDiffuseIntensity(light, light, light, 1);
+            mSceneLight.setSpecularIntensity(light, light, light, 1);
+        }
     }
 
 
-    private IPlaneEventsListener planeEventsListener = new IPlaneEventsListener()
+    private IPlaneEvents planeEventsListener = new IPlaneEvents()
     {
         @Override
-        public void onPlaneDetection(GVRPlane gvrPlane)
+        public void onStartPlaneDetection(IMixedReality mr)
         {
-            if (gvrPlane.getPlaneType() == GVRPlane.PlaneType.HORIZONTAL_UPWARD_FACING)
+            mUtility.initCursorController(getGVRContext(),
+                    mTouchHandler,
+                    mr.getScreenDepth());
+        }
+
+        @Override
+        public void onStopPlaneDetection(IMixedReality mr) { }
+
+        @Override
+        public void onPlaneDetected(GVRPlane gvrPlane)
+        {
+            if (gvrPlane.getPlaneType() == GVRPlane.Type.HORIZONTAL_UPWARD_FACING)
             {
-                GVRSceneObject planeMesh = mAssets.createPlane(getGVRContext(), mMixedReality.getARToVRScale());
+                GVRSceneObject planeMesh = mUtility.createPlane(getGVRContext());
 
                 planeMesh.attachComponent(gvrPlane);
                 mScene.addSceneObject(planeMesh);
@@ -104,12 +120,18 @@ public class AvatarMain extends GVRMain {
         }
 
         @Override
-        public void onPlaneMerging(GVRPlane gvrPlane, GVRPlane gvrPlane1)
+        public void onPlaneMerging(GVRPlane parent, GVRPlane child)
         {
+            GVRSceneObject childOwner = child.getOwnerObject();
+            if (childOwner != null)
+            {
+                childOwner.detachComponent(GVRPlane.getComponentType());
+                childOwner.getParent().removeChildObject(childOwner);
+            }
         }
     };
 
-    private IAnchorEventsListener anchorEventsListener = new IAnchorEventsListener()
+    private IAnchorEvents anchorEventsListener = new IAnchorEvents()
     {
         @Override
         public void onAnchorStateChange(GVRAnchor gvrAnchor, GVRTrackingState gvrTrackingState)
@@ -169,6 +191,12 @@ public class AvatarMain extends GVRMain {
             {
                 return;
             }
+            GVRSceneObject.BoundingVolume bv = sceneObj.getBoundingVolume();
+
+            if (pickInfo.hitDistance < bv.radius)
+            {
+                pickInfo.hitLocation[2] -= 1.5f * bv.radius;
+            }
             GVRHitResult hit = mMixedReality.hitTest(pickInfo);
 
             if (hit == null)
@@ -191,13 +219,9 @@ public class AvatarMain extends GVRMain {
             }
             else
             {
-                avatarAnchor = new GVRSceneObject(mContext);
-                avatarAnchor.setName("AvatarAnchor");
+                avatarAnchor = mMixedReality.createAnchorNode(pose);
                 avatarAnchor.addChildObject(avatarModel);
-                anchor = mMixedReality.createAnchor(pose);
-                avatarModel.setName("AvatarModel");
                 avatarModel.attachComponent(new GVRBoxCollider(mContext));
-                avatarAnchor.attachComponent(anchor);
                 mScene.addSceneObject(avatarAnchor);
                 avatarModel.getEventReceiver().addListener(mSelector);
             }
