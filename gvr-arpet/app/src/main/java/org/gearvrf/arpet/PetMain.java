@@ -15,7 +15,6 @@
 
 package org.gearvrf.arpet;
 
-import android.util.Log;
 import android.view.MotionEvent;
 
 import org.gearvrf.GVRCameraRig;
@@ -41,6 +40,7 @@ import org.gearvrf.io.GVRInputManager;
 import org.gearvrf.mixedreality.GVRAnchor;
 import org.gearvrf.mixedreality.GVRPlane;
 import org.gearvrf.mixedreality.IMixedReality;
+import org.gearvrf.utility.Log;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 
@@ -129,10 +129,6 @@ public class PetMain extends DisableNativeSplashScreen {
             newController.getPicker().setPickClosest(false);
             newController.getPicker().setEventOptions(eventOptions);
             mCursorController = newController;
-            if (newController instanceof GVRGazeCursorController) {
-                ((GVRGazeCursorController) newController).setTouchScreenDepth(mr.getScreenDepth());
-                newController.setCursor(null);
-            }
         });
     }
 
@@ -285,13 +281,20 @@ public class PetMain extends DisableNativeSplashScreen {
 
         @Override
         public void onTouchEnd(GVRSceneObject gvrSceneObject, GVRPicker.GVRPickedObject gvrPickedObject) {
+            if (gvrSceneObject == null)
+                return;
+
             Log.d(TAG, "onTouchEnd " + gvrSceneObject.getName());
+
+            if (gvrSceneObject.getParent() == null)
+                return;
+
+            GVRPlane selectedPlane = (GVRPlane)gvrSceneObject.getParent().getComponent(GVRPlane.getComponentType());
 
             // TODO: Improve this if
             if ((gvrSceneObject != null) &&
                 (gvrSceneObject.getComponent(GVRPlane.getComponentType()) != null)) {
                 final float[] modelMtx = gvrSceneObject.getTransform().getModelMatrix();
-
 
                 if (!mPet.isRunning()) {
                     mPet.setPlane(gvrSceneObject);
@@ -304,12 +307,12 @@ public class PetMain extends DisableNativeSplashScreen {
                         mCurrentMode = new HudMode(mPetContext, mPet, mHandlerModeChange);
                         mCurrentMode.enter();
                     }
-                    GVRPlane selectedPlane = (GVRPlane) gvrSceneObject.getComponent(GVRPlane.getComponentType());
-                    mPlaneHandler.setSelectedPlane(selectedPlane);
+                    mPlaneHandler.setSelectedPlane(selectedPlane, null);
                 }
 
-                if (gvrSceneObject ==  mPet.getPlane()) {
+                if (gvrSceneObject == mPet.getPlane()) {
                     final float[] hitPos = gvrPickedObject.hitLocation;
+                    Log.d(TAG, "goToTap(%f, %f, %f)", hitPos[0], hitPos[1], hitPos[2]);
                     mPet.goToTap(hitPos[0], hitPos[1], hitPos[2]);
                 }
             }

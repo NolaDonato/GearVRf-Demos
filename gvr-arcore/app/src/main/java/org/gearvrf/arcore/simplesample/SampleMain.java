@@ -155,7 +155,7 @@ public class SampleMain extends GVRMain {
          * vertically upward planes (floor, table top).
          * We don't need colliders on these since they are
          * not pickable.
-          */
+         */
         @Override
         public void onPlaneDetected(GVRPlane gvrPlane)
         {
@@ -359,7 +359,7 @@ public class SampleMain extends GVRMain {
                     mMixedReality.updateAnchorPose(anchor, hit.getPose());
                 }
             }
-            GVRHitResult gvrHitResult = mixedReality.hitTest(pickInfo);
+        }
 
         public void update(GVRPicker.GVRPickedObject pickInfo)
         {
@@ -464,23 +464,6 @@ public class SampleMain extends GVRMain {
                 {
                     addVirtualObject(hit.getPose());
                 }
-            }
-            if (mVirtObjCount >= MAX_VIRTUAL_OBJECTS)
-            {
-                anchor = mVirtualObjects.get(mVirtObjCount % mVirtualObjects.size());
-                mixedReality.updateAnchorPose(anchor, gvrHitResult.getPose());
-                return;
-            }
-            try
-            {
-                GVRSceneObject andy = load3dModel(getGVRContext());
-                addVirtualObject(gvrHitResult.getPose(), andy);
-                mSelector.onEnter(andy);
-            }
-            catch (IOException ex)
-            {
-                ex.printStackTrace();
-                Log.e(TAG, ex.getMessage());
             }
         }
 

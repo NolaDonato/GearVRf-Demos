@@ -185,6 +185,9 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         mPetMain.onARInit(mContext, mr);
     }
 
+    /*
+     * ARCore session guaranteed to be initialized here.
+     */
     @Override
     public void onStopPlaneDetection(IMixedReality mr) { }
 
@@ -230,10 +233,10 @@ public final class PlaneHandler implements IPlaneEvents, GVRDrawFrameListener {
         mPlanes.remove(childPlane);
     }
 
-    public void setSelectedPlane(GVRPlane mainPlane) {
+    public void setSelectedPlane(GVRPlane mainPlane, GVRSceneObject visibleColliderPlane) {
         for (GVRPlane plane: mPlanes) {
             if (plane != mainPlane) {
-                plane.setEnable(mainPlane == null);
+                plane.getOwnerObject().setEnable(mainPlane == null);
             }
         }
 

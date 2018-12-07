@@ -80,6 +80,7 @@ public class CharacterView extends GVRSceneObject implements
 
         mPetContext = petContext;
         mTapObject = new GVRSceneObject(mPetContext.getGVRContext());
+        mTapObject.getTransform().setScale(0.01f, 0.01f, 0.01f);
     }
 
     public GVRSceneObject getTapObject() {
