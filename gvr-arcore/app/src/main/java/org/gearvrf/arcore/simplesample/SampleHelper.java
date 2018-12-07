@@ -15,8 +15,6 @@
 
 package org.gearvrf.arcore.simplesample;
 
-import android.graphics.Color;
-
 import org.gearvrf.GVRAndroidResource;
 import org.gearvrf.GVRContext;
 import org.gearvrf.GVRMaterial;
@@ -24,10 +22,10 @@ import org.gearvrf.GVRMesh;
 import org.gearvrf.GVRPicker;
 import org.gearvrf.GVRRenderData;
 import org.gearvrf.GVRSceneObject;
+import org.gearvrf.ITouchEvents;
 import org.gearvrf.io.GVRCursorController;
 import org.gearvrf.io.GVRGazeCursorController;
 import org.gearvrf.io.GVRInputManager;
-import org.gearvrf.io.GVRTouchPadGestureListener;
 import org.joml.Vector4f;
 
 import java.util.EnumSet;
@@ -72,7 +70,7 @@ public class SampleHelper {
        };
     }
 
-    public GVRSceneObject createQuadPlane(GVRContext gvrContext, float scale)
+    public GVRSceneObject createQuadPlane(GVRContext gvrContext)
     {
         GVRSceneObject plane = new GVRSceneObject(gvrContext);
         GVRMesh mesh = GVRMesh.createQuad(gvrContext,
@@ -87,14 +85,15 @@ public class SampleHelper {
         mat.setDiffuseColor(color.x, color.y, color.x, color.w);
         polygonObject.getRenderData().disableLight();
         polygonObject.getRenderData().setAlphaBlend(true);
+        polygonObject.getRenderData().setRenderingOrder(GVRRenderData.GVRRenderingOrder.TRANSPARENT);
         polygonObject.getTransform().setRotationByAxis(-90, 1, 0, 0);
-        polygonObject.getTransform().setScale(scale, scale, scale);
         plane.addChildObject(polygonObject);
         return plane;
     }
 
-    public void initCursorController(GVRContext gvrContext, final SampleMain.TouchHandler handler) {
-        final int cursorDepth = 100;
+    public void initCursorController(GVRContext gvrContext, final ITouchEvents handler, final float displayDepth)
+    {
+        final float cursorDepth = 100.0f;
         gvrContext.getMainScene().getEventReceiver().addListener(handler);
         GVRInputManager inputManager = gvrContext.getInputManager();
         mCursor = new GVRSceneObject(gvrContext,
@@ -107,6 +106,7 @@ public class SampleHelper {
         mCursor.getRenderData().setRenderingOrder(GVRRenderData.GVRRenderingOrder.OVERLAY);
         final EnumSet<GVRPicker.EventOptions> eventOptions = EnumSet.of(
                 GVRPicker.EventOptions.SEND_TOUCH_EVENTS,
+                GVRPicker.EventOptions.SEND_TO_HIT_OBJECT,
                 GVRPicker.EventOptions.SEND_TO_LISTENERS);
         inputManager.selectController(new GVRInputManager.ICursorControllerSelectListener()
         {
@@ -117,11 +117,8 @@ public class SampleHelper {
                     oldController.removePickEventListener(handler);
                 }
                 mCursorController = newController;
-                if (newController instanceof GVRGazeCursorController)
-                {
-                    ((GVRGazeCursorController) newController).setEnableTouchScreen(true);
-                }
                 newController.setCursor(mCursor);
+                newController.getPicker().setPickClosest(false);
                 newController.setCursorDepth(cursorDepth);
                 newController.setCursorControl(GVRCursorController.CursorControl.CURSOR_CONSTANT_DEPTH);
                 newController.getPicker().setEventOptions(eventOptions);
